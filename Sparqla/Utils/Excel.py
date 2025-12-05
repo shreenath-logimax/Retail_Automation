@@ -7,8 +7,30 @@ from openpyxl import load_workbook
 
 
 class ExcelUtils:
-   
-    file_path =  "C:\ProgramData\Jenkins\.jenkins\workspace\Retail_Testing\Sparqla\Sqarqla_Retail_data2.xlsx"
+    # Base folder = Sparqla (since this file is Sparqla/Utils/Excel.py)
+    _base_dir = Path(__file__).resolve().parents[1]
+
+    # Original template in repo
+    template_path = _base_dir / "Sqarqla_Retail_data2.xlsx"
+
+    # Output folder & writable copy (for Jenkins run)
+    output_dir = _base_dir / "output"
+    output_dir.mkdir(exist_ok=True)
+
+    # This is the file we will read & write in tests
+    file_path = output_dir / "Sqarqla_Retail_data2_run.xlsx"
+
+    @staticmethod
+    def ensure_copy_exists():
+        """
+        Make sure we have a writable copy of the template for this run.
+        """
+        if not ExcelUtils.file_path.exists():
+            shutil.copy2(ExcelUtils.template_path, ExcelUtils.file_path)
+            print(f"Created Excel copy at: {ExcelUtils.file_path}")
+        else:
+            print(f"Using existing Excel copy: {ExcelUtils.file_path}")
+    #file_path =  "C:\ProgramData\Jenkins\.jenkins\workspace\Retail_Testing\Sparqla\Sqarqla_Retail_data2.xlsx"
     
     # Start Excel
     def ExcelClose(file_path):
@@ -261,6 +283,7 @@ class ExcelUtils:
         
 
     
+
 
 
 
