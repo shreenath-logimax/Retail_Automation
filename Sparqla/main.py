@@ -30,11 +30,11 @@ def create_driver():
     options.add_argument("--use-fake-device-for-media-stream")
     options.add_argument("--use-fake-ui-for-media-stream")
 
-    # 👉 If running inside Jenkins, go headless (no UI)
-    if os.environ.get("JENKINS_HOME"):
-        options.add_argument("--headless=new")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--window-size=1920,1080")
+    # # 👉 If running inside Jenkins, go headless (no UI)
+    # if os.environ.get("JENKINS_HOME"):
+    #     options.add_argument("--headless=new")
+    #     options.add_argument("--disable-gpu")
+    #     options.add_argument("--window-size=1920,1080")
 
     driver = webdriver.Chrome(
         service=Service(ChromeDriverManager().install()),
@@ -153,4 +153,5 @@ class main():
         main()
         
         
+
 
