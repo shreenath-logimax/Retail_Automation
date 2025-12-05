@@ -7,7 +7,7 @@ from openpyxl import load_workbook
 
 
 class ExcelUtils:
-    file_path = "Sparqla/Sparqla_Retail_data2.xlsx"
+    file_path = "Retail_Automation/Sparqla/Sparqla_Retail_data2.xlsx"
     
     # Start Excel
     def ExcelClose(file_path):
@@ -260,3 +260,4 @@ class ExcelUtils:
         
 
     
+
