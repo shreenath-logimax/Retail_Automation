@@ -7,7 +7,9 @@ from openpyxl import load_workbook
 
 
 class ExcelUtils:
-    file_path =  r"Retail_Automation/Sparqla/Sparqla_Retail_data2.xlsx"
+    base_path = os.getcwd()   # Jenkins workspace path
+    file_path = os.path.join(base_path, "Sparqla", "Sparqla_Retail_data2.xlsx")
+    # file_path =  r"Retail_Automation/Sparqla/Sparqla_Retail_data2.xlsx"
     
     # Start Excel
     def ExcelClose(file_path):
@@ -260,5 +262,6 @@ class ExcelUtils:
         
 
     
+
 
 
