@@ -7,8 +7,8 @@ from openpyxl import load_workbook
 
 
 class ExcelUtils:
-    file_path = os.path.abspath("Sparqla_Retail_data2.xlsx")
-    # file_path =  r"Retail_Automation/Sparqla/Sparqla_Retail_data2.xlsx"
+   
+    file_path =  "C:\ProgramData\Jenkins\.jenkins\workspace\Retail_Testing\Sparqla\Sqarqla_Retail_data2.xlsx"
     
     # Start Excel
     def ExcelClose(file_path):
@@ -261,6 +261,7 @@ class ExcelUtils:
         
 
     
+
 
 
 
