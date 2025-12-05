@@ -46,6 +46,7 @@ def create_driver():
 class main():
     @staticmethod
     def main():
+        ExcelUtils.ensure_copy_exists()
         FILE_PATH = ExcelUtils.file_path
         # Step 1: Initialize WebDriver
         ExcelUtils.ExcelClose(FILE_PATH)
@@ -153,5 +154,6 @@ class main():
         main()
         
         
+
 
 
