@@ -68,9 +68,11 @@ class Login(unittest.TestCase):
             sheet.cell(row=row_num, column=3).value = str(existing_value) + ", " + message
         else:  # If empty
             sheet.cell(row=row_num, column=3).value = message
-
+        output_path = r"C:\Windows\Temp\Sparqla_Retail_data2.xlsx"
+        workbook.save(output_path)
+        print("File saved at:", output_path)
         # Save workbook   
-        workbook.save(FILE_PATH)    
+        #workbook.save(FILE_PATH)    
         sleep(2)
         Status = ExcelUtils.get_Status(FILE_PATH,function_name)  
         print(Status)
@@ -99,3 +101,4 @@ class Login(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
