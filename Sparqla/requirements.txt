@@ -1,2 +1,6 @@
 selenium==3.141.0
 urllib3==1.26.7
+requests
+certifi
+idna
+charset-normalizer
