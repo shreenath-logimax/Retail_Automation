@@ -18,27 +18,54 @@ from Test_vendor.Vendor import VendorRegistration
 from Test_Customer.Customer import CustomerOrderTR
 from Test_EST.EST import ESTIMATION
 import datetime     
+import os
+
+def create_driver():
+    """Create Chrome driver. Headless when running inside Jenkins."""
+    options = Options()
+    options.add_argument("--log-level=3")
+    options.add_experimental_option("excludeSwitches", ["enable-logging"])
+
+    # Block camera popup
+    options.add_argument("--use-fake-device-for-media-stream")
+    options.add_argument("--use-fake-ui-for-media-stream")
+
+    # 👉 If running inside Jenkins, go headless (no UI)
+    if os.environ.get("JENKINS_HOME"):
+        options.add_argument("--headless=new")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--window-size=1920,1080")
+
+    driver = webdriver.Chrome(
+        service=Service(ChromeDriverManager().install()),
+        options=options
+    )
+    driver.maximize_window()
+    return driver
 
 class main():
+    @staticmethod
     def main():
         FILE_PATH = ExcelUtils.file_path
         # Step 1: Initialize WebDriver
         ExcelUtils.ExcelClose(FILE_PATH)
         ct1 = datetime.datetime.now()
         print('Automation process Started',ct1)
-        options = Options()
-        options.add_argument("--log-level=3")
+
+        driver = create_driver()
+        # options = Options()
+        # options.add_argument("--log-level=3")
         
         
-        options.add_experimental_option('excludeSwitches', ['enable-logging'])
+        # options.add_experimental_option('excludeSwitches', ['enable-logging'])
 
-        # Block camera popup
-        options.add_argument("--use-fake-device-for-media-stream")
-        options.add_argument("--use-fake-ui-for-media-stream")
+        # # Block camera popup
+        # options.add_argument("--use-fake-device-for-media-stream")
+        # options.add_argument("--use-fake-ui-for-media-stream")
 
-        driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
-        driver.maximize_window()
-        options = Options()
+        # driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+        # driver.maximize_window()
+        # options = Options()
         try:
             sheet_names = ExcelUtils.get_sheet_names(FILE_PATH)
             print(sheet_names)
@@ -126,3 +153,4 @@ class main():
         main()
         
         
+
