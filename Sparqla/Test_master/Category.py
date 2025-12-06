@@ -10,6 +10,10 @@ from time import sleep
 import unittest
 from Utils.Excel import ExcelUtils
 from openpyxl import load_workbook
+import sys
+
+# Enable UTF-8 safe console output
+sys.stdout.reconfigure(encoding='utf-8')
 
 FILE_PATH = ExcelUtils.file_path
 class Category(unittest.TestCase):
@@ -261,4 +265,5 @@ class Category(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
 
