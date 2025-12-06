@@ -120,7 +120,6 @@ class Category(unittest.TestCase):
         category_Xpath=(f"//li[normalize-space()='{metal_category}']")
         category_option = wait.until(EC.element_to_be_clickable((By.XPATH,category_Xpath)))
         category_option.click()
-        sleep(10)
         wait.until(EC.element_to_be_clickable((By.ID,"select2-tgrp_sel-container"))).click()
         # Wait until the tax option appears and click TaxGrp
         TaxGrp = row_data["TaxGrp"]
@@ -152,7 +151,6 @@ class Category(unittest.TestCase):
             wait.until(EC.element_to_be_clickable((By.ID,"category_desc"))).click()
             wait.until(EC.element_to_be_clickable((By.ID,"category_desc"))).clear()
             wait.until(EC.element_to_be_clickable((By.ID,"category_desc"))).send_keys(row_data["CatDesc"])
-            sleep(10)
         wait.until(EC.element_to_be_clickable((By.ID,"add_newcategory"))).click()
         driver.save_screenshot("error_add_category.png")
         try:
@@ -265,5 +263,6 @@ class Category(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
