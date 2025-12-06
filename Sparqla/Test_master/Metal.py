@@ -67,6 +67,7 @@ class Metal(unittest.TestCase):
             sheet.cell(row=row_num, column=2).value = Test_Status
             sheet.cell(row=row_num, column=3).value = ", ".join(Actual_list)
             workbook.save(FILE_PATH)
+            workbook.close()
             Status = ExcelUtils.get_Status(FILE_PATH,function_name)  
             print(Status)
             Update_master = ExcelUtils.update_master_status(FILE_PATH,Status,function_name)   
@@ -207,3 +208,4 @@ class Metal(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
