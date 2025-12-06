@@ -74,6 +74,7 @@ class Metal(unittest.TestCase):
     
     def create(self,row_data):
         wait = self.wait
+        self.driver.refresh()
         wait.until(EC.element_to_be_clickable((By.ID,"add_metal"))).click()
         Metal=wait.until(EC.element_to_be_clickable((By.ID,"metal_name")))
         Metal.click()
@@ -208,4 +209,5 @@ class Metal(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
 
