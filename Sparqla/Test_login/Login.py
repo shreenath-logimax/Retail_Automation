@@ -72,7 +72,8 @@ class Login(unittest.TestCase):
         # workbook.save(output_path)
         # print("File saved at:", output_path)
         # Save workbook   
-        workbook.save(FILE_PATH)    
+        workbook.save(FILE_PATH)   
+        workbook.close()  
         sleep(2)
         Status = ExcelUtils.get_Status(FILE_PATH,function_name)  
         print(Status)
@@ -101,5 +102,6 @@ class Login(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
