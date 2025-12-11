@@ -11,6 +11,7 @@ from Test_master.Design import Design
 from Test_master.Subdesign import Subdesign
 from Test_master.Designmapping import Designmapping
 from Test_master.Subdesignmapping import Subdesignmapping
+from Test_Bill.Bill import *
 from Test_master.MCVA import McVa
 from Test_lot.Lot import Lot
 from Test_Tag.Tag import Tag
@@ -132,6 +133,11 @@ class main():
                             print("yes")
                             EST = ESTIMATION(driver)
                             Data = EST.test_estimation() 
+                        case "Billing":
+                            print("yes")
+                            Bill = Billing(driver)
+                            Data = Bill.test_Billing()
+                        
                 else:
                     print("Invalid option")
         finally:

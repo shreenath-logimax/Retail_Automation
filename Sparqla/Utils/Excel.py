@@ -13,14 +13,14 @@ class ExcelUtils:
     _base_dir = Path(__file__).resolve().parents[1]
 
     # Original template in repo
-    template_path = _base_dir / "Sqarqla_Retail_data2.xlsx"
+    template_path = _base_dir / "C:\Users\Dell\Desktop\sqrqlas\Sqarqla_Retail_data2.xlsx"
 
     # Output folder & writable copy (for Jenkins run)
     output_dir = _base_dir / "output"
     output_dir.mkdir(exist_ok=True)
 
     # This is the file we will read & write in tests
-    file_path = output_dir / "Sqarqla_Retail_data2_run.xlsx"
+    file_path = output_dir / "C:\Users\Dell\Desktop\sqrqlas\Sqarqla_Retail_data2.xlsx"
 
     @staticmethod
     def ensure_copy_exists():
