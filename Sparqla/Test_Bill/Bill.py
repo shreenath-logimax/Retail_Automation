@@ -5,6 +5,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from time import  sleep
 import unittest
 from Utils.Excel import ExcelUtils
+from Utils.Function import Function_Call
 from Utils.Board_rate import Boardrate
 from Test_EST.EST_Tag import ESTIMATION_TAG
 from Test_EST.EST_Nontag import ESTIMATION_NonTag
@@ -61,6 +62,57 @@ class Billing(unittest.TestCase):
             # Call you 'create' method
             Create_data = self.create(row_data, row_num, Sheet_name)
             print(Create_data)
-    
-    
-     
+            
+    def create(self,row_data, row_num, Sheet_name,Board_Rate):
+        driver = self.driver
+        wait = self.wait
+        driver.refresh()
+        Mandatory_field=[]        
+        #Cost Centre
+        if row_data['MC Type']:
+            Function_Call.select_visible_text(self, '//select[@id="id_branch"]',value=row_data['Cost Centre'])
+        else:
+            msg = f"'{None}' → Cost Centre field is mandatory ⚠️"
+            Mandatory_field.append("Cost Centre"); print(msg); Function_Call.Remark(self,row_num, msg,Sheet_name)
+        
+        #Billing To
+        Billing_To = {
+                "Customer": '//input[@id="type1"]',
+                "Company": '//input[@id="type2"]',
+                "Supplier":'//input[@id="type3"]'
+            }
+        print(Billing_To[row_data["Billing To"]])
+        Function_Call.click(self,Billing_To[row_data["Billing_To"]])
+        
+        #Employes
+        if row_data["Employee"] is not None:
+            Function_Call.dropdown_select(self,f"//span[@id='select2-emp_select-container']", row_data["Employee"],'//span[@class="select2-search select2-search--dropdown"]/input')
+        else:
+            msg = f"'{None}' → Employee field is mandatory ⚠️"
+            Mandatory_field.append("Employee"); print(msg); Function_Call.Remark(self,row_num, msg,Sheet_name)
+        
+        # Customer
+        if row_data["Customer"]:
+            Function_Call.fill_autocomplete_field(self,"bill_cus_name", row_data["Customer"])
+        else:
+            msg = f"'{None}' → Customer field is mandatory ⚠️"
+            Mandatory_field.append(msg)
+            print(msg)
+            Function_Call.Remark(row_num, msg)
+            sleep(3)
+        Function_Call.click(self,'(//button[@class="btn btn-close btn-warning"])[11]')
+        
+        
+       
+        bill=row_data["Bill Type"]   
+        match  bill:
+            case"SALES":
+                Function_Call.click(self,'//input[@id="bill_typesales"]')
+                if row_data["EstNo"]:
+                    Function_Call.fill_input2(self,'//input[@id="filter_est_no"]',row_data["EstNo"])
+                    Function_Call.click(self,'//button[@id="search_est_no"]')
+            
+            
+            
+            
+        

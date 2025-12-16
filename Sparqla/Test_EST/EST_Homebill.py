@@ -161,7 +161,7 @@ class ESTIMATION_Homebill(unittest.TestCase):
                 Sheet_name=Sheet_name)   
         else:
             pass
-        
+        sleep(5)
         if row_data["Pcs"]:
             errors=Function_Call.fill_input(
             self,wait,

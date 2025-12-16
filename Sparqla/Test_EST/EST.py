@@ -10,16 +10,23 @@ from Test_EST.EST_Tag import ESTIMATION_TAG
 from Test_EST.EST_Nontag import ESTIMATION_NonTag
 from Test_EST.EST_Homebill import ESTIMATION_Homebill
 from Test_EST.EST_oldmetal import ESTIMATION_Oldmetal
+from Test_EST.EST_No import EstimationExtractor
 from openpyxl.drawing.image import Image
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+from PyPDF2 import PdfReader
 from openpyxl import load_workbook
 from openpyxl.styles import Font
-import re
+from pathlib import Path
+import base64, re, time
 
 FILE_PATH = ExcelUtils.file_path
 class ESTIMATION(unittest.TestCase):
     def __init__(self,driver):
         self.driver =driver   
         self.wait = WebDriverWait(driver, 30)
+
 
     def test_estimation(self):
         driver = self.driver
@@ -123,27 +130,45 @@ class ESTIMATION(unittest.TestCase):
         Actual_Status=[]
         Total_amount=[]
         old_amount=[]
-
+        bill_type=[]
+        Row_No=1
         if row_data["Estimation TAG"]=="Yes":
             test_case_id=row_data["Test Case Id"]
             Call_Tag=ESTIMATION_TAG.test_estimationtag(self,test_case_id,Board_Rate)     
             print(Call_Tag)
             Total_amount.append(Call_Tag)
+            bill_type.append("SALES")
+            No=1
+            Row_No=Row_No+1
         if row_data["Estimation Non-Tag"]=="Yes":
             test_case_id=row_data["Test Case Id"]
             Call_Non_Tag=ESTIMATION_NonTag.test_estimation_Nontag(self,test_case_id,Board_Rate)
             print(Call_Non_Tag)
             Total_amount.append(Call_Non_Tag)
+            if bill_type:
+                bill_type.pop()
+            bill_type.append("SALES")
+            
         if row_data["Estimation Home Bill"]=="Yes":
             test_case_id=row_data["Test Case Id"]
             Call_HomeBill=ESTIMATION_Homebill.test_estimation_Homebill(self,test_case_id,Board_Rate)
             print(Call_HomeBill)
             Total_amount.append(Call_HomeBill)
+            if bill_type:
+                bill_type.pop()
+            bill_type.append("SALES")
+            
         if row_data["Estimation Old Metal"]=="Yes":
             test_case_id=row_data["Test Case Id"]
             Call_OldMetal=ESTIMATION_Oldmetal.test_estimation_Oldmetal(self,test_case_id)
             print(Call_OldMetal)
             old_amount.append(Call_OldMetal)
+            if bill_type:
+                bill_type.pop()
+                bill_type.append("SALES & PURCHASE")
+            else:
+                bill_type.append("PURCHASE")
+                
         if Total_amount:           
             print('Done')
             print("Total_amount list:", Total_amount)
@@ -174,15 +199,38 @@ class ESTIMATION(unittest.TestCase):
         if total==value and Old_Amt==old_value:
             Test_Status='Pass'
             Actual_Status='✅Calculation is correct'
-            Function_Call.click(self,'//button[@id="est_print"]') 
+            old_tabs = driver.window_handles
+            Function_Call.click(self,'//button[@id="est_print"]')
+            # wait for new tab
+            for _ in range(20):
+                new_tabs = driver.window_handles
+                if len(new_tabs) > len(old_tabs):
+                    new_tab = [t for t in new_tabs if t not in old_tabs][0]
+                    driver.switch_to.window(new_tab)
+                    break
+                time.sleep(0.3)
+
+            # get the PDF URL
+            url = driver.current_url
+            print("PDF URL:", url)
+            viewer_url = driver.current_url  # after print button opens PDF tab
+            extractor = EstimationExtractor(driver)
+            EST_details = extractor.save_and_extract(out_pdf="est_3.pdf", viewer_url=viewer_url)
+            print(EST_details)
+            ESTIMATION.update_EST_Details(self,EST_details,row_data,bill_type)
+            # driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+            windows = driver.window_handles
+            sleep(3)
+            driver.switch_to.window(old_tabs[0])
+           
+            # pass URL directly to your class
+            # Estimation_number(self.driver).url(url)
         else:
             Test_Status='Fail'   
             Actual_Status= f'❌ Calculation Error in {total} | Web Value={value}'
             Function_Call.click(self, '//button[@class="btn btn-default btn-cancel"]') 
-        windows = driver.window_handles
-        sleep(3)
-        driver.switch_to.window(windows[0])     
         return Test_Status, Actual_Status
+  
         
     def update_excel_status(self,row_num, Test_Status, Actual_Status, function_name):
         print(function_name)
@@ -208,7 +256,22 @@ class ESTIMATION(unittest.TestCase):
         # Print and return status
         print(Status)
         return Status
-
-
-
-
+    
+    def update_EST_Details(self,EST_details,row_data,bill_type):
+        function_name=str(bill_type[0])
+        # Load the workbook
+        workbook = load_workbook(FILE_PATH)
+        valid_rows = ExcelUtils.get_valid_rows(FILE_PATH, function_name)
+        print(valid_rows)
+        sheet = workbook[function_name]  # or workbook["SheetName"]
+        id=row_data["Test Case Id"]
+        sheet.cell(row=valid_rows, column=1, value=id)
+        sheet.cell(row=valid_rows, column=4, value=EST_details[0])
+        sheet.cell(row=valid_rows, column=5, value=EST_details[1])
+        if function_name !='PURCHASE':    
+            sheet.cell(row=valid_rows, column=6, value=EST_details[2])
+            sheet.cell(row=valid_rows, column=7, value=EST_details[3])
+        
+        workbook.save(FILE_PATH)
+        workbook.close()
+        
