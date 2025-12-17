@@ -31,8 +31,6 @@ def create_driver():
     options.add_argument("--use-fake-device-for-media-stream")
     options.add_argument("--use-fake-ui-for-media-stream")
 
-  
-
     driver = webdriver.Chrome(
         service=Service(ChromeDriverManager().install()),
         options=options

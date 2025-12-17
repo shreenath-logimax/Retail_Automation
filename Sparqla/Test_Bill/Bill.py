@@ -7,7 +7,7 @@ import unittest
 from Utils.Excel import ExcelUtils
 from Utils.Function import Function_Call
 from Utils.Board_rate import Boardrate
-from Test_EST.EST_Tag import ESTIMATION_TAG
+from Test_Bill.Sales import SALES
 from Test_EST.EST_Nontag import ESTIMATION_NonTag
 from Test_EST.EST_Homebill import ESTIMATION_Homebill
 from Test_EST.EST_oldmetal import ESTIMATION_Oldmetal
@@ -60,7 +60,7 @@ class Billing(unittest.TestCase):
                             for key, col in data.items()}
             print(row_data)
             # Call you 'create' method
-            Create_data = self.create(row_data, row_num, Sheet_name)
+            Create_data = self.create(row_data, row_num, Sheet_name,Rate)
             print(Create_data)
             
     def create(self,row_data, row_num, Sheet_name,Board_Rate):
@@ -69,20 +69,21 @@ class Billing(unittest.TestCase):
         driver.refresh()
         Mandatory_field=[]        
         #Cost Centre
-        if row_data['MC Type']:
+        if row_data['Cost Centre']:
             Function_Call.select_visible_text(self, '//select[@id="id_branch"]',value=row_data['Cost Centre'])
         else:
             msg = f"'{None}' → Cost Centre field is mandatory ⚠️"
             Mandatory_field.append("Cost Centre"); print(msg); Function_Call.Remark(self,row_num, msg,Sheet_name)
         
         #Billing To
-        Billing_To = {
-                "Customer": '//input[@id="type1"]',
-                "Company": '//input[@id="type2"]',
-                "Supplier":'//input[@id="type3"]'
+        Bill_To = {
+                "Customer": '//input[@id="billing_for1"]',
+                "Company": '//input[@id="billing_for2"]',
+                "Supplier":'//input[@id="billing_for3"]'
             }
-        print(Billing_To[row_data["Billing To"]])
-        Function_Call.click(self,Billing_To[row_data["Billing_To"]])
+        print(Bill_To[row_data["Billing To"]])
+        a = Bill_To[row_data["Billing To"]]
+        Function_Call.click(self,a)
         
         #Employes
         if row_data["Employee"] is not None:
@@ -92,8 +93,8 @@ class Billing(unittest.TestCase):
             Mandatory_field.append("Employee"); print(msg); Function_Call.Remark(self,row_num, msg,Sheet_name)
         
         # Customer
-        if row_data["Customer"]:
-            Function_Call.fill_autocomplete_field(self,"bill_cus_name", row_data["Customer"])
+        if row_data["Customer Number"]:
+            Function_Call.fill_autocomplete_field(self,"bill_cus_name", row_data["Customer Number"])
         else:
             msg = f"'{None}' → Customer field is mandatory ⚠️"
             Mandatory_field.append(msg)
@@ -101,16 +102,21 @@ class Billing(unittest.TestCase):
             Function_Call.Remark(row_num, msg)
             sleep(3)
         Function_Call.click(self,'(//button[@class="btn btn-close btn-warning"])[11]')
-        
+        Test_id=row_data["Test Case Id"]
         
        
         bill=row_data["Bill Type"]   
+        print(bill)
         match  bill:
             case"SALES":
                 Function_Call.click(self,'//input[@id="bill_typesales"]')
-                if row_data["EstNo"]:
-                    Function_Call.fill_input2(self,'//input[@id="filter_est_no"]',row_data["EstNo"])
-                    Function_Call.click(self,'//button[@id="search_est_no"]')
+                SALES.test_Sales(self,Test_id)
+                
+                
+                
+                # if row_data["EstNo"]:
+                #     Function_Call.fill_input2(self,'//input[@id="filter_est_no"]',row_data["EstNo"])
+                #     Function_Call.click(self,'//button[@id="search_est_no"]')
             
             
             

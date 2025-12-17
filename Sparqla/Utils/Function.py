@@ -52,20 +52,6 @@ class Function_Call(unittest.TestCase):
             clicked.click()
             print("✅ Clicked2:", xpath)
         
-    
-    # def scroll_to_element(driver, element):
-    #     origin = ScrollOrigin.from_viewport()
-    #     location = element.location_once_scrolled_into_view
-
-    #     # Get element position relative to viewport height
-    #     window_height = driver.execute_script("return window.innerHeight;")
-        
-    #     element_y = location["y"]
-
-    #     # If element is below screen → scroll down, else scroll up
-    #     offset_y = 300 if element_y > window_height else -300
-
-    #     ActionChains(driver).scroll_from_origin(origin, 0, offset_y).perform()
             
     
     def get_text(self, xpath):
