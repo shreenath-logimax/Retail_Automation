@@ -12,6 +12,7 @@ from selenium.webdriver.support.ui import Select
 from openpyxl import load_workbook
 from openpyxl.styles import Font
 from Utils.Excel import ExcelUtils
+from datetime import datetime
 import re
 
 FILE_PATH=ExcelUtils.file_path
@@ -66,7 +67,9 @@ class Function_Call(unittest.TestCase):
         driver = self.driver
         element = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
         driver.execute_script("arguments[0].scrollIntoView({block: 'nearest', inline: 'center'});", element)
-        return element.get_attribute('value').strip()  # ✅ Return the actual value
+        value = element.get_attribute("value")
+        return value.strip() if value else ""
+        # ✅ Return the actual value
         
         
     def dropdown_select(self,xpath, value,text_xpath):
@@ -118,7 +121,7 @@ class Function_Call(unittest.TestCase):
         wait.until(EC.presence_of_element_located((By.XPATH, xpath))).send_keys(value)
         
         
-    def fill_input(self, wait,locator, value, field_name, row_num, pattern=None, screenshot_prefix="", extra_keys=None, range_check=None, Sheet_name=""):
+    def fill_input(self, wait,locator, value, field_name, row_num, pattern=None, screenshot_prefix="", extra_keys=None, range_check=None, Sheet_name="",Date_range=None):
         """Generic handler for text/numeric fields with validation and optional range check."""
         errors = []
         driver, wait = self.driver, self.wait
@@ -148,7 +151,18 @@ class Function_Call(unittest.TestCase):
                 valid = range_check(float(entered_value))
             except:
                 valid = False
-
+        
+        if Date_range:
+            try:
+                entered_date = datetime.strptime(entered_value, "%d-%m-%Y").date()
+                if entered_date <= datetime.today().date():
+                    raise ValueError("Not a future date")
+            except:
+                driver.save_screenshot(f"{screenshot_prefix}_{test_case_id}.png")
+                msg = f"{field_name} must be a FUTURE date → {entered_value}"
+                Function_Call.Remark(self, row_num, msg, Sheet_name)
+                errors.append(field_name)
+                return errors
 
         if not valid:
             driver.save_screenshot(f"{screenshot_prefix}_{test_case_id}.png")
@@ -242,9 +256,6 @@ class Function_Call(unittest.TestCase):
         """)
         print("TOAST:", msg)
         return msg
-
-
-
        
         
     def alert1(self,Xpath):

@@ -47,12 +47,14 @@ class ESTIMATION(unittest.TestCase):
         Board_Rate.append(Silver_rate)
         print(Silver_rate)  
         wait.until(EC.element_to_be_clickable((By.PARTIAL_LINK_TEXT,"Toggle navigation"))).click()
-        module=wait.until(EC.invisibility_of_element_located((By.XPATH,"//span[contains(text(), 'Estimation')]")))
-        driver.execute_script("arguments[0].scrollIntoView({block: 'nearest', inline: 'center'});", module)
-        module.click()
-        Estimation=wait.until(EC.invisibility_of_element_located((By.XPATH,"//span[contains(text(), 'Add Estimation')]")))
-        driver.execute_script("arguments[0].scrollIntoView({block: 'nearest', inline: 'center'});", Estimation)
-        Estimation.click()
+        Function_Call.click(self,"//span[contains(text(), 'Estimation')]")
+        Function_Call.click(self,"//span[contains(text(), 'Add Estimation')]")
+        # module=wait.until(EC.invisibility_of_element_located((By.XPATH,"//span[contains(text(), 'Estimation')]")))
+        # driver.execute_script("arguments[0].scrollIntoView({block: 'nearest', inline: 'center'});", module)
+        # module.click()
+        # Estimation=wait.until(EC.invisibility_of_element_located((By.XPATH,"//span[contains(text(), 'Add Estimation')]")))
+        # driver.execute_script("arguments[0].scrollIntoView({block: 'nearest', inline: 'center'});", Estimation)
+        # Estimation.click()
         
         Sheet_name = "EST"                                        
         valid_rows = ExcelUtils.get_valid_rows(FILE_PATH, Sheet_name)
@@ -217,7 +219,7 @@ class ESTIMATION(unittest.TestCase):
             extractor = EstimationExtractor(driver)
             EST_details = extractor.save_and_extract(out_pdf="est_3.pdf", viewer_url=viewer_url)
             print(EST_details)
-            ESTIMATION.update_EST_Details(self,EST_details,row_data,bill_type)
+            ESTIMATION.update_EST_Details(self,EST_details,row_data,bill_type,row_num)
             # driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
             windows = driver.window_handles
             sleep(3)
@@ -257,21 +259,26 @@ class ESTIMATION(unittest.TestCase):
         print(Status)
         return Status
     
-    def update_EST_Details(self,EST_details,row_data,bill_type):
-        function_name=str(bill_type[0])
+    def update_EST_Details(self,EST_details,row_data,bill_type,row_num):
+        function_name='Billing'
+        type=str(bill_type[0])
+        # 
         # Load the workbook
         workbook = load_workbook(FILE_PATH)
-        valid_rows = ExcelUtils.get_valid_rows(FILE_PATH, function_name)
-        print(valid_rows)
+        # valid_rows = ExcelUtils.get_valid_rows(FILE_PATH, function_name)
+        # print(valid_rows)
         sheet = workbook[function_name]  # or workbook["SheetName"]
-        id=row_data["Test Case Id"]
-        sheet.cell(row=valid_rows, column=1, value=id)
-        sheet.cell(row=valid_rows, column=4, value=EST_details[0])
-        sheet.cell(row=valid_rows, column=5, value=EST_details[1])
-        if function_name !='PURCHASE':    
-            sheet.cell(row=valid_rows, column=6, value=EST_details[2])
-            sheet.cell(row=valid_rows, column=7, value=EST_details[3])
+        Customer_Detail=row_data["Customer"]
         
+        # for row_num in range(2, valid_rows):  
+            
+        if sheet.cell(row=row_num, column=7, value=Customer_Detail) and sheet.cell(row=row_num, column=10, value=type):
+            sheet.cell(row=row_num, column=12, value=EST_details[0])
+            sheet.cell(row=row_num, column=13, value=EST_details[1])
+        if type !='PURCHASE':    
+            sheet.cell(row=row_num, column=14, value=EST_details[2])
+            sheet.cell(row=row_num, column=15, value=EST_details[3])
+            
         workbook.save(FILE_PATH)
         workbook.close()
         

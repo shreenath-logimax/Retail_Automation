@@ -67,13 +67,117 @@ class SALES(unittest.TestCase):
                                 for key, col in data.items()}
                 print(row_data)
                 # Call you 'create' method
-                Create_data = self.create(row_data, row_num, Sheet_name,Rate)
+                Create_data = SALES.create(self,row_data, row_num, Sheet_name,Rate)
                 print(Create_data)
-            
-    def create(self,row_data, row_num, Sheet_name,Board_Rate):
+             
+    def create(self,row_data, row_num, Sheet_name,Rate):
         driver = self.driver
         wait = self.wait
-        driver.refresh()
         Mandatory_field=[]        
         Function_Call.fill_input2(self,'//input[@id="filter_est_no"]',row_data["EstNo"])
         Function_Call.click(self,'//button[@id="search_est_no"]')
+        Function_Call.click(self,'(//button[@class="btn btn-close btn-warning"])[11]')
+        sleep(3)
+        Function_Call.click(self,"//a[normalize-space()='Total Summary']")
+        Taxable_Sale_Amount = Function_Call.get_text(self, "//span[@class='summary_lbl summary_sale_amt']")
+        print(Taxable_Sale_Amount)
+        CGST=Function_Call.get_text(self,'//span[@class="summary_lbl sales_cgst"]')
+        print(CGST)
+        SGST=Function_Call.get_text(self,'//span[@class="summary_lbl sales_sgst"]') 
+        print(SGST)
+        IGST=Function_Call.get_text(self,'//span[@class="summary_lbl sales_igst"]')
+        print(IGST)
+        Sale_Amount=Function_Call.get_text(self,'//span[@class="summary_lbl sale_amt_with_tax"]')
+        print(Sale_Amount)
+        Purchase_Amount =Function_Call.get_text(self,'//span[@class="summary_lbl summary_pur_amt"]')
+        print(Purchase_Amount)
+        Discount =Function_Call.fill_input(self,'//div[@id="sale_discount"]')
+        print(Discount)
+        if row_data["Discount"]:
+            errors=Function_Call.fill_input(
+                self,wait,
+                locator=(By.XPATH, '//div[@id="sale_discount"]'),
+                value=row_data["Discount"],
+                pattern = r"\d{1,2}?$",
+                field_name="Discount",
+                screenshot_prefix="Discount",
+                row_num=row_num,
+                Sheet_name=Sheet_name)   
+        else:
+            pass
+       
+        if row_data["Handling_Charges"]:
+            errors=Function_Call.fill_input(
+                self,wait,
+                locator=(By.XPATH, '//input[@id="handling_charges"]'),
+                value=row_data["Handling_Charges"],
+                pattern = r"\d{1,2}?$",
+                field_name="Handling_Charges",
+                screenshot_prefix="Handling_Charges",
+                row_num=row_num,
+                Sheet_name=Sheet_name)   
+        else:
+            pass
+        if row_data["Return_Charges"]:
+            errors=Function_Call.fill_input(
+                self,wait,
+                locator=(By.XPATH, '//input[@id="return_charges"]'),
+                value=row_data["Return_Charges"],
+                pattern = r"\d{1,2}?$",
+                field_name="Return_Charges",
+                screenshot_prefix="Return_Charges",
+                row_num=row_num,
+                Sheet_name=Sheet_name)   
+        else:
+            pass
+        if row_data["Return_Charges"]:
+            errors=Function_Call.fill_input(
+                self,wait,
+                locator=(By.XPATH, '//input[@id="return_charges"]'),
+                value=row_data["Return_Charges"],
+                pattern = r"\d{1,2}?$",
+                field_name="Return_Charges",
+                screenshot_prefix="Return_Charges",
+                row_num=row_num,
+                Sheet_name=Sheet_name)   
+        else:
+            pass
+        Function_Call.click(self,'//li[@id="tab_make_pay"]')
+        if row_data['Is_Credit'] == 'Yes':
+           Function_Call.click(self,'//input[@id="is_credit_yes"]')
+        if row_data['Is_Tobe'] == 'Yes':
+           Function_Call.click(self,'//input[@id="is_to_be_yes"]')
+           
+        if row_data["Credit_Due_Date"]:
+            errors=Function_Call.fill_input(
+                self,wait,
+                locator=(By.XPATH, '//input[@id="credit_due_date"]'),
+                value=row_data["Credit_Due_Date"],
+                pattern = r"\d{1,2}?$",
+                field_name="Credit_Due_Date",
+                screenshot_prefix="Credit_Due_Date",
+                row_num=row_num,
+                Sheet_name=Sheet_name)   
+        else:
+            pass   
+           
+        if row_data["Cash"]:
+            errors=Function_Call.fill_input(
+                self,wait,
+                locator=(By.XPATH, '//input[@id="make_pay_cash"]'),
+                value=row_data["Cash"],
+                pattern = r"\d{1,2}?$",
+                field_name="Cash",
+                screenshot_prefix="Cash",
+                row_num=row_num,
+                Sheet_name=Sheet_name)   
+        else:
+            pass
+        
+        Function_Call.click(self,'//input[@id="card_detail_modal"]')
+        Function_Call.select(self, '//select[@name="card_details[card_name][]"]',row_data[''])
+        Function_Call.select(self, '//select[@name="card_details[card_type][]"]',row_data[''])
+        
+        
+      
+        
