@@ -130,6 +130,7 @@ class Function_Call(unittest.TestCase):
         # driver.execute_script("arguments[0].scrollIntoView({block: 'nearest', inline: 'center'});", field)
         field.click()
         field.clear()
+        
         if value is not None:
             field.send_keys(value)
             if extra_keys:

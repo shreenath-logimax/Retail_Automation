@@ -12,6 +12,7 @@ from Test_master.Subdesign import Subdesign
 from Test_master.Designmapping import Designmapping
 from Test_master.Subdesignmapping import Subdesignmapping
 from Test_Bill.Bill import Billing
+from Test_Purchase.Grn_entry import Grn_Entry
 from Test_master.MCVA import McVa
 from Test_lot.Lot import Lot
 from Test_Tag.Tag import Tag
@@ -132,10 +133,13 @@ class main():
                             EST = ESTIMATION(driver)
                             Data = EST.test_estimation() 
                         case "Billing":
-                            
                             print("yes")
                             Bill = Billing(driver)
                             Data = Bill.test_Billing()
+                        case "GRN ENTRY FORM":
+                            print("yes")
+                            GrnEntry = Grn_Entry(driver)
+                            Data = GrnEntry.test_Grn_entry()
                         
                 else:
                     print("Invalid option")
