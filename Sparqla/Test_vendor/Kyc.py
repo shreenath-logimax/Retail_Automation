@@ -192,7 +192,7 @@ class KYC(unittest.TestCase):
                 msg = f"'{None}' → ID field is mandatory ⚠️"
                 Mandatory_field.append(msg); print(msg); Function_Call.Remark(self,row_num, msg,Sheet_name)
                 
-            ImagesFront = row_data["ImagesFront"].strip()
+            ImagesFront = row_data["ImagesFront"].strip()#Aadhar BMP
             Path = r"D:\Retail_Testing\Image_all_Format"
             Image_path = fr"{Path}\{ImagesFront}"
             print (Image_path)

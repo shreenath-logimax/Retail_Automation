@@ -12,7 +12,9 @@ from Test_master.Subdesign import Subdesign
 from Test_master.Designmapping import Designmapping
 from Test_master.Subdesignmapping import Subdesignmapping
 from Test_Bill.Bill import Billing
-from Test_Purchase.Grn_entry import Grn_Entry
+from Test_Purchase.PurchasePO import PurchasePO
+from Test_Purchase.GRNEntry import GRNEntry
+from Test_Purchase.SupplierBillEntry import SupplierBillEntry
 from Test_master.MCVA import McVa
 from Test_lot.Lot import Lot
 from Test_Tag.Tag import Tag
@@ -21,6 +23,7 @@ from Test_Customer.Customer import CustomerOrderTR
 from Test_EST.EST import ESTIMATION
 import datetime     
 import os
+import shutil
 
 def create_driver():
     """Create Chrome driver. Headless when running inside Jenkins."""
@@ -42,6 +45,11 @@ def create_driver():
 class main():
     @staticmethod
     def main():
+        # Step 0: Clear screenshots folder
+        if os.path.exists(ExcelUtils.SCREENSHOT_PATH):
+            shutil.rmtree(ExcelUtils.SCREENSHOT_PATH)
+        os.makedirs(ExcelUtils.SCREENSHOT_PATH, exist_ok=True)
+
         # ExcelUtils.ensure_copy_exists()
         FILE_PATH = ExcelUtils.file_path
         # Step 1: Initialize WebDriver
@@ -136,17 +144,27 @@ class main():
                             print("yes")
                             Bill = Billing(driver)
                             Data = Bill.test_Billing()
-                        case "GRN ENTRY FORM":
+                        case "PurchasePO":
                             print("yes")
-                            GrnEntry = Grn_Entry(driver)
-                            Data = GrnEntry.test_Grn_entry()
+                            PurchasePO_automation = PurchasePO(driver)
+                            Data = PurchasePO_automation.test_purchase_po()
+                        case "GRNEntry":
+                            print("yes")
+                            GRNEntry_automation = GRNEntry(driver)
+                            Data = GRNEntry_automation.test_grn_entry()
+                        case "SupplierBillEntry":
+                            print("yes")
+                            SupplierBill_automation = SupplierBillEntry(driver)
+                            Data = SupplierBill_automation.test_supplier_bill_entry()
                         
                 else:
                     print("Invalid option")
         finally:
             # Close the WebDriver
-            driver.close()
-            driver.quit()
+            try:
+                driver.quit()
+            except:
+                pass
 
             ct2 = datetime.datetime.now()
             print('Automation process completed',ct2)

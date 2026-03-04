@@ -1,916 +1,433 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import Select
-from selenium.common.exceptions import NoSuchElementException
-from selenium.common.exceptions import NoAlertPresentException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import random
-from selenium.webdriver.support.ui import Select
+from selenium.common.exceptions import UnexpectedAlertPresentException
 from time import sleep
-import re
-import time
+import os
 import unittest
+import re
+import math
+import random
 from Utils.Excel import ExcelUtils
+from Utils.Function import Function_Call
 from Test_gettag.getttag import GetTag
 from Test_Customer.less import Stone
-from openpyxl.drawing.image import Image
 from openpyxl import load_workbook
-import math
-from selenium.webdriver import ActionChains
 from openpyxl.styles import Font
-
+from PIL import ImageGrab
 
 FILE_PATH = ExcelUtils.file_path
+
 class CustomerOrderTR(unittest.TestCase):
     def __init__(self, driver):
         self.driver = driver
         self.wait = WebDriverWait(driver, 30)
-        self.Mandatory_field = []
+        self.fc = Function_Call(driver)
+        self.Board_Rate = []
+
     def test_customer_order_t_r(self):
-        driver = self.driver
-        wait = self.wait
-        function_name = "Customer"
+        """Main test entry point for Customer Order automation."""
+        sheet_name = "Customer"
 
         # Read Excel data
-        valid_rows = ExcelUtils.get_valid_rows(FILE_PATH, function_name)
-        Customer = ExcelUtils.customer_details(FILE_PATH, function_name)
-        print(Customer)
-        count = ExcelUtils.Tag_reserve(FILE_PATH, function_name)
-        print(count)
-        if count != 0:
-            TAG = GetTag.test_gettag(self, count)
-            print(TAG)
-            Update_Tag = ExcelUtils.update_tag_id(FILE_PATH, function_name, TAG)
-            print(Update_Tag)
+        valid_rows = ExcelUtils.get_valid_rows(FILE_PATH, sheet_name)
+        customer_list = ExcelUtils.customer_details(FILE_PATH, sheet_name)
+        tag_count = ExcelUtils.Tag_reserve(FILE_PATH, sheet_name)
+
+        if tag_count != 0:
+            tags = GetTag.test_gettag(self, tag_count)
+            ExcelUtils.update_tag_id(FILE_PATH, sheet_name, tags)
         else:
             print("All tags available")
+
         # Get Gold rate
-        rate_text = wait.until(EC.presence_of_element_located( (By.XPATH, "(//span[@class='header_rate']/b)[3]"))).text
-        gold_rate = int(rate_text.replace("INR", "").strip())
-        print(gold_rate)
+        self.Board_Rate = []
+        Function_Call.click(self, "//span[@class='header_rate']/b[contains(text(),'INR')]")
+        rate_text1 = self.wait.until(EC.presence_of_element_located((By.XPATH, "//li[@class='user-body rate_block_body']//tr[th[contains(text(),'Gold 22KT 1gm')]]/td"))).text
+        rate_text2 = self.wait.until(EC.presence_of_element_located((By.XPATH, "//li[@class='user-body rate_block_body']//tr[th[contains(text(),'Gold 18KT 1gm')]]/td"))).text
+        rate_text3 = self.wait.until(EC.presence_of_element_located((By.XPATH, "//li[@class='user-body rate_block_body']//tr[th[contains(text(),'Silver 1gm')]]/td"))).text
+        
+        gold_rate22KT = int(float(rate_text1.replace("INR", "").strip()))
+        self.Board_Rate.append(gold_rate22KT)
+        gold_rate18KT = int(float(rate_text2.replace("INR", "").strip()))
+        self.Board_Rate.append(gold_rate18KT)
+        silver_rate = int(float(rate_text3.replace("INR", "").strip()))
+        self.Board_Rate.append(silver_rate)
+        
+        print(f"Rates - 22KT: {gold_rate22KT}, 18KT: {gold_rate18KT}, Silver: {silver_rate}")
+
         # Navigate to Customer Orders page
-        wait.until(EC.element_to_be_clickable((By.PARTIAL_LINK_TEXT, "Toggle navigation"))).click()
-        wait.until(EC.element_to_be_clickable((By.XPATH, "(.//*[normalize-space(text()) and normalize-space(.)='All Requests'])[1]/following::span[1]"))).click()
-        wait.until(EC.element_to_be_clickable((By.XPATH, "(.//*[normalize-space(text()) and normalize-space(.)='Customer Orders'])[1]/following::span[1]"))).click()
+        self.fc.click("//a[@class='sidebar-toggle']")
+        self.fc.click("//span[contains(text(), 'Customer Orders')]")
+        self.fc.click("//span[contains(text(), 'Create Order')]")
+
         # Load Excel sheet
         workbook = load_workbook(FILE_PATH)
-        sheet = workbook[function_name]
-        beforelist = ''
-        row = 1
-        for row_num in range(2, valid_rows):
-            for customer_No in Customer:
-                Cus_No = customer_No
-                # Map Excel columns to keys
-                data_map = {
-                    "TestCaseId": 1,
-                    "TestStatus": 2,
-                    "ActualStatus": 3,
-                    "Customer Number": 4,
-                    "Customer Name": 5,
-                    "OrderBranch": 6,
-                    "Employee": 7,
-                    "BalanceType": 8,
-                    "OrderType": 9,
-                    "RateType": 10,
-                    "TagScan": 11,
-                    "Product": 12,
-                    "Design": 13,
-                    "SubDesign": 14,
-                    "Purity": 15,
-                    "GrossWt": 16,
-                    "LessWt": 17,
-                    "Size": 18,
-                    "Pcs": 19,
-                    "Wast%": 20,
-                    "Wast_Wgt": 21,
-                    "MC_Type": 22,
-                    "MC_Value": 23,
-                    "OtherCharge": 24,
-                    "ChargeName": 25,
-                    "Rate": 26,
-                    "Description": 27,
-                    "OrderEdit": 28,
-                    "UpdateGwt": 29,
-                    "Remove": 30,
-                    "Field_validation_satus": 31
-                }
+        sheet = workbook[sheet_name]
+        prev_customer = ''
+        row_counter = 1
 
-                row_data = {key: sheet.cell(row=row_num, column=col).value 
-                            for key, col in data_map.items()}
-                #wchich is empty
-                keys_to_check = ["Customer Number", "OrderBranch", "Employee", "TagScan",
-                                 "Purity", "GrossWt", "Pcs", "Rate", "Description"]
-                print(row_data)
-                row_no = row_num + 1
-                #Take the after column cus No 
-                Next_No = sheet.cell(row=row_no, column=4).value
+        for row_num in range(2, valid_rows + 1):
+            if not customer_list:
+                break
                 
-                # Call your 'create' method
-                Create_data = self.create(row_data, Cus_No, Next_No, beforelist, row, gold_rate, keys_to_check, row_num)
-                print(Create_data)
-                beforelist=Cus_No
+            current_cus_no = customer_list[0]
+            
+            data_map = {
+                "TestCaseId": 1, "TestStatus": 2, "ActualStatus": 3, "Customer Number": 4,
+                "Customer Name": 5, "OrderBranch": 6, "Employee": 7, "BalanceType": 8,
+                "OrderType": 9, "RateType": 10, "TagScan": 11, "Product": 12,
+                "Design": 13, "SubDesign": 14, "Purity": 15, "GrossWt": 16,
+                "LessWt": 17, "Size": 18, "Pcs": 19, "Wast%": 20,
+                "Wast_Wgt": 21, "MC_Type": 22, "MC_Value": 23, "OtherCharge": 24,
+                "ChargeName": 25, "Rate": 26, "Description": 27, "OrderEdit": 28,
+                "UpdateGwt": 29, "Remove": 30, "Field_validation_satus": 31
+            }
 
-                # Remove processed customer from the list
-                Customer.pop(0)
-                customer_No =Create_data
-                if customer_No == Cus_No:
-                    row=row+1
-                    break
-                else:
-                    if Create_data:
-                        Test_Status,Actual_Status= Create_data
-                        row=1
-                        self.update_excel_status(row_num, Test_Status, Actual_Status, function_name)
-                        break
-                
-                
-    def create(self, row_data, Cus_No, Next_No, beforelist, row, gold_rate, keys_to_check, row_num):
-        driver, wait = self.driver, self.wait
-        test_case_id = row_data["TestCaseId"]
-        Mandatory_field = []
-        # ------------------------------
-        # Step 1: Open Order if Customer is new
-        # ------------------------------
-        if beforelist != Cus_No:
-            wait.until(EC.element_to_be_clickable((By.ID, "add_Order"))).click()
-            self.fill_customer_branch_employee(row_data, row_num, Mandatory_field)
-            self.select_order_balance_type_rate(row_data)
+            row_data = {key: sheet.cell(row=row_num, column=col).value for key, col in data_map.items()}
+            next_cus_no = sheet.cell(row=row_num + 1, column=4).value
+            
+            keys_to_check = ["Customer Number", "OrderBranch", "Employee", "Product", "Purity", "GrossWt", "Pcs", "Rate", "Description"]
 
-            # Scroll up if needed
-            if row >= 5:
-                driver.execute_script(f"window.scrollBy(0, -{row*100});")
-        else:
-            print("Same Customer, skipping header")
+            result = self.create(row_data, current_cus_no, next_cus_no, prev_customer, row_counter, keys_to_check, row_num, sheet_name)
+            
+            prev_customer = current_cus_no
+            print('prev_customer-------------------',prev_customer)
+            customer_list.pop(0)
+            print('customer_list-------------------',customer_list)
 
-        # ------------------------------
-        # Step 2: Handle Order Types
-        # ------------------------------
-        if row_data["OrderType"] == "Tag Reserve":
-            return self.handle_tag_reserve(row_data, row, row_num, keys_to_check,Mandatory_field,gold_rate, Next_No, Cus_No)
+            if result == current_cus_no:
+                row_counter += 1
+                print('row_counter-------------------',row_counter)
+            elif isinstance(result, tuple):
+                test_status, actual_status = result
+                row_counter = 1
+                self.update_excel_status(row_num, test_status, actual_status, sheet_name)
 
-        if row_data["OrderType"] == "Customized Order":
-            return self.handle_customized_order(row_data, row, row_num, test_case_id, keys_to_check,gold_rate, Next_No, Cus_No)
+        workbook.close()
 
-        # ------------------------------
-        # Step 3: Post-processing / Create Order
-        # ------------------------------
+    def create(self, row_data, cus_no, next_no, prev_cus, row_idx, keys_to_check, row_num, sheet_name):
+        """Processes a single order record."""
+        if prev_cus != cus_no:
+            self.fc.click("//a[@id='add_Order']")
+            if not self._handle_customer_header(row_data, row_num, sheet_name):
+                return "Fail", "Header information missing or invalid."
+            self._handle_order_types_selection(row_data)
+
+            if row_idx >= 5:
+                self.driver.execute_script(f"window.scrollBy(0, -{row_idx*100});")
         
+        if row_data["OrderType"] == "Tag Reserve":
+            data=self.handle_tag_reserve(row_data, row_idx, row_num, keys_to_check, next_no, cus_no, sheet_name)
+            if data:
+                return data
+            return "Fail", "Tag Reserve failed."
+            
+        
+        if row_data["OrderType"] == "Customized Order":
+            print('row_idx-------------------',row_idx)
+            data=self.handle_customized_order(row_data, row_idx, row_num, next_no, cus_no, sheet_name)
+            if data:
+                return data
+            return "Fail", "Customized Order failed."
+            
 
-    
-    def fill_autocomplete_field(self, field_id, value):
-        driver, wait = self.driver, self.wait
-        field = wait.until(EC.element_to_be_clickable((By.ID, field_id)))
-        field.click()
-        field.clear()
-        field.send_keys(value)
-        time.sleep(2)
-        field.send_keys(Keys.BACKSPACE)
-        wait.until(EC.presence_of_element_located((By.XPATH, f"//li[contains(text(),'{value}')]"))).click()
+        return "Fail", f"Unknown Order Type: {row_data['OrderType']}"
 
-    
-    
-    def fill_customer_branch_employee(self, row_data, row_num, Mandatory_field):
-        driver, wait = self.driver, self.wait
-
+    def _handle_customer_header(self, row_data, row_num, sheet_name):
+        """Fills header information: Customer, Branch, Employee."""
         # Customer
-        if row_data["Customer Number"]:
-            self.fill_autocomplete_field("cus_name", row_data["Customer Number"])
+        if row_data.get("Customer Number"):
+            self.fc.fill_autocomplete_field("cus_name", str(row_data["Customer Number"]))
         else:
-            msg = f"'{None}' → Customer field is mandatory ⚠️"
-            Mandatory_field.append(msg)
-            print(msg)
-            CustomerOrderTR.Remark(row_num, msg)
+            self.fc.Remark(row_num, "Customer field is mandatory ⚠️", sheet_name)
+            Function_Call.click(self,'//button[@class="btn btn-default btn-cancel"]')
+            return False
 
-        # Order Branch
-        if row_data["OrderBranch"]:
-            self.select1_fill(wait, "//span[@id='select2-branch_select-container']/span", row_data["OrderBranch"])
+        # Branch
+        if row_data.get("OrderBranch"):
+            self.fc.dropdown_select("//span[@id='select2-branch_select-container']", 
+                                   row_data["OrderBranch"], 
+                                   "//span[@class='select2-search select2-search--dropdown']/input")
         else:
-            msg = f"'{None}' → Order Branch field is mandatory ⚠️"
-            Mandatory_field.append(msg)
-            print(msg)
-            CustomerOrderTR.Remark(row_num, msg)
+            self.fc.Remark(row_num, "Order Branch field is mandatory ⚠️", sheet_name)
+            Function_Call.click(self,'//button[@class="btn btn-default btn-cancel"]')
+            return False
 
         # Employee
-        if row_data["Employee"]:
-            self.select1_fill(wait, "//*[@id='order_submit']/div[1]/div[1]/div/div[6]/div/span/span[1]/span", row_data["Employee"])
+        if row_data.get("Employee"):
+            self.fc.dropdown_select("//span[@id='select2-issue_employee-container']", 
+                                   row_data["Employee"], 
+                                   "//span[@class='select2-search select2-search--dropdown']/input")
         else:
-            msg = f"'{None}' → Employee field is mandatory ⚠️"
-            Mandatory_field.append(msg)
-            print(msg)
-            CustomerOrderTR.Remark(row_num, msg)
+            self.fc.Remark(row_num, "Employee field is mandatory ⚠️", sheet_name)
+            Function_Call.click(self,'//button[@class="btn btn-default btn-cancel"]')
+            return False
+            
+        return True
 
-    def select_order_balance_type_rate(self, row_data):
-        driver, wait = self.driver, self.wait
-
+    def _handle_order_types_selection(self, row_data):
+        """Selects Balance, Order, and Rate types."""
         # Balance Type
-        balance_map = {"Metal Balance": "metal_bal_type", "Cash Balance": "cash_bal_type"}
-        if row_data["BalanceType"] in balance_map:
-            wait.until(EC.element_to_be_clickable((By.ID, balance_map[row_data["BalanceType"]]))).click()
-
+        self.fc.click("//input[@id='metal_bal_type']" if row_data.get("BalanceType") == "Metal Balance" else "//input[@id='cash_bal_type']")
         # Order Type
-        order_map = {"Tag Reserve": "tag_order", "Customized Order": "customer_order"}
-        if row_data["OrderType"] in order_map:
-            wait.until(EC.element_to_be_clickable((By.ID, order_map[row_data["OrderType"]]))).click()
-
+        self.fc.click("//input[@id='tag_order']" if row_data.get("OrderType") == "Tag Reserve" else "//input[@id='customer_order']")
         # Rate Type
-        rate_map = {"Order Rate(Fixed)": "order_rate", "Delivery Rate": "delivery_rate"}
-        if row_data["RateType"] in rate_map:
-            wait.until(EC.element_to_be_clickable((By.ID, rate_map[row_data["RateType"]]))).click()
+        self.fc.click("//input[@id='order_rate']" if row_data.get("RateType") == "Order Rate(Fixed)" else "//input[@id='delivery_rate']")
 
-    
-    def handle_customized_order(self, row_data, row, row_num, test_case_id, keys_to_check,gold_rate, Next_No, Cus_No):
-        driver, wait = self.driver, self.wait
-        Mandatory_field= []
+    def handle_customized_order(self, row_data, row_idx, row_num, next_no, cus_no, sheet_name):
+        """Processes a Customized Order line item."""
+        test_case_id = row_data["TestCaseId"]
+        self.fc.click("//button[@id='add_order_item']")
 
-        # --- Customer Number check ---
-        if row_data["Customer Number"] is None:
-            error = CustomerOrderTR.alert1(self)
-            Test_Status="Pass"
-            Actual_Status= (f"⚠️ Found the message:'{error}'") # prints: Select Order Branch
-            print(error)
-            wait.until(EC.element_to_be_clickable((By.XPATH,'//button[@class="btn btn-default btn-cancel"]'))).click()
-            return Test_Status,Actual_Status 
+        if row_idx >= 4:
+            self.driver.execute_script(f"window.scrollBy(0, {row_idx*100});")
+            sleep(1)
 
-        # --- Missing keys validation ---
-        missing_keys = [k for k in self.Missing_data(row_data, keys_to_check)
-                        if k not in ["Customer Number","TagScan","Purity","GrossWt","Pcs","Rate","Description"]]
-        if missing_keys:   
-            # Add Item Button     
-            wait.until(EC.element_to_be_clickable((By.ID,"add_order_item"))).click()           
-            try:
-                alert_text = CustomerOrderTR.alert(self)
-                Test_Status="Pass"
-                Actual_Status= (f"⚠️ Found the message:'{alert_text}'") # prints: Select Order Branch
-                print(Actual_Status)
-            except:
-                # No alert → check field value
-                print(f'//span[@id="select2-prod_{row}-container"]/span')
-                Product =wait.until(EC.presence_of_element_located((By.XPATH,f'//span[@id="select2-prod_{row}-container"]/span'))) 
-                Showing_Product = Product.text
-                if Showing_Product:
-                    Test_Status="Fail"
-                    driver.save_screenshot(f"{missing_keys}_{test_case_id}.png")
-                    Actual_Status=(f'{missing_keys} → These Field are None to Add successfully ❌')
-                    print(Actual_Status)   
-            #Cancel Button     
-            wait.until(EC.element_to_be_clickable((By.XPATH,'//button[@class="btn btn-default btn-cancel"]'))).click()              
-            return Test_Status,Actual_Status 
+        # Dropdowns
+        for field, value in [("prod", row_data["Product"]), ("dsgn", row_data["Design"]), ("sub_design", row_data["SubDesign"])]:
+            self.fc.dropdown_select(f"//span[@id='select2-{field}_{row_idx}-container']", value, "//span[@class='select2-search select2-search--dropdown']/input")
+
+        if row_data.get("Purity"):
+            self.fc.select_visible_text(f"//select[@id='purity{row_idx}']", row_data["Purity"])
+
+        # Inputs
+        if row_data.get("GrossWt"):
+            self.fc.fill_input(self.wait, (By.ID, f"weight_{row_idx}"), row_data["GrossWt"], "GrossWt", row_num, pattern=r"\d+(\.\d{1,3})?", screenshot_prefix="GrossWt", Sheet_name=sheet_name)
         else:
-            # Add Item Button     
-            wait.until(EC.element_to_be_clickable((By.ID,"add_order_item"))).click() 
-
-        if row >= 4:
-            driver.execute_script(f"window.scrollBy(0, {row*100});")
-            sleep(2)
-
-        # --- Select2 dropdowns ---
-        for field, value in [("prod", row_data["Product"]),
-                            ("dsgn", row_data["Design"]),
-                            ("sub_design", row_data["SubDesign"])]:
-            self.select2_fill(wait, f"//span[@id='select2-{field}_{row}-container']", value)
-
-        # --- Purity ---
-        if row_data["Purity"]:
-            Select(wait.until(EC.element_to_be_clickable((By.ID,f"purity{row}")))).select_by_visible_text(row_data["Purity"])
-        else:
-            msg = f"'{None}' → Purity field is mandatory ⚠️"
-            Mandatory_field.append(msg); print(msg); CustomerOrderTR.Remark(row_num,msg)
-
-        # --- Inputs ---
-       # --- GrossWt (max 3 decimals) ---
-        Error_field_val = []
-        if row_data["GrossWt"]:
-            errors = self.fill_input(wait,
-            locator=(By.ID, f"weight_{row}"), 
-            pattern=r"\d+(\.\d{1,3})?",
-            value=row_data["GrossWt"], 
-            field_name="GrossWt",
-            row_num=row_num,
-            screenshot_prefix="GrossWt"
-            )
-            Error_field_val.extend(errors)
-            print(Error_field_val)  # collect errors if any
-        else:
-            msg = f"'{None}' → Gross weight field is mandatory ⚠️"
-            Mandatory_field.append(msg); print(msg); CustomerOrderTR.Remark(row_num, msg)
+            self.fc.Remark(row_num, "GrossWt field is mandatory ⚠️", sheet_name)
+            Function_Call.click(self,'//button[@class="btn btn-default btn-cancel"]')
+            return False
         
+        if row_data.get("LessWt") == "Yes":
+            self.fc.click(f"//input[@name='o_item[{row_idx}][less_wt]']")
+            Stone.test_tagStone(self, "Customer_LWT", test_case_id)
+
+        self.fc.fill_input(self.wait, (By.ID, f"qty_{row_idx}"), row_data["Pcs"], "Pcs", row_num, pattern=r"^\d+$", screenshot_prefix="Pcs", extra_keys=Keys.ENTER, Sheet_name=sheet_name)
+        self.fc.fill_input(self.wait, (By.NAME, f"o_item[{row_idx}][wast_percent]"), row_data["Wast%"], "Wast%", row_num, pattern=r"^\d+(\.\d{1,2})?$", screenshot_prefix="Wast%", range_check=lambda v: 0 <= float(v) <= 100, Sheet_name=sheet_name)
+
+        # MC
+        self.fc.click(f"(//span[contains(@id, 'id_mc_type')])[{row_idx}]")
+        sleep(0.5)
+        mc_search = self.wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/span[2]/span/span[1]/input")))
+        mc_search.clear()
+        mc_search.send_keys(row_data["MC_Type"], Keys.ENTER)
+        self.fc.fill_input(self.wait, (By.NAME, f"o_item[{row_idx}][mc]"), row_data["MC_Value"], "MC_Value", row_num, pattern=r"^\d+(\.\d{1,2})?$", screenshot_prefix="MC", Sheet_name=sheet_name)
+
+        if row_data.get("OtherCharge") == "Yes":
+            self._handle_other_charges(row_data, row_idx)
             
-            
-        # Less WT field     
-        if row_data["LessWt"]=="Yes":
-            wait.until(EC.element_to_be_clickable((By.XPATH,f'//input[@name="o_item[{row}][less_wt]"]'))).click()
-            Sheet_name = "Customer_LWT"
-            LessWeight=Stone.test_tagStone(self,Sheet_name,test_case_id) 
+        gold_rate = self._get_dynamic_gold_rate(row_idx)
+        self.fc.fill_input(self.wait, (By.XPATH, f"//*[@id='detail{row_idx}']/td[20]/input"), gold_rate, "Rate", row_num, pattern=r"^\d+(\.\d{1,2})?$", screenshot_prefix="Rate", Sheet_name=sheet_name)
+
+        if row_data.get("Description"):
+            self._fill_description(row_data, row_idx)
+
+        if row_data.get("Remove"):
+            self._handle_item_removal(row_data["Remove"], row_idx)
+
+        return self.check_calculation_and_submit(row_data, row_idx, next_no, cus_no)
+
+    def handle_tag_reserve(self, row_data, row_idx, row_num, keys_to_check, next_no, cus_no, sheet_name):
+        """Handles the Tag Reserve order type."""
+        self.fc.fill_input2("//input[@id='est_tag_scan']", row_data["TagScan"])
+        self.fc.click("//button[@id='tag_search']")
+
+        if row_data.get("Description"):
+            self._fill_description(row_data, row_idx)
         else:
-            print("less weight not there")
-        time.sleep(2)
+            self.fc.Remark(row_num, "Description field is mandatory ⚠️", sheet_name)
 
-        # --- Pcs (integer only) ---
-        if row_data["Pcs"]:
-            errors = self.fill_input(wait,
-                locator=(By.ID, f"qty_{row}"), 
-                pattern=r"^\d+$",
-                value=row_data["Pcs"], 
-                field_name="Pcs",
-                screenshot_prefix="Pcs",
-                row_num=row_num,
-                extra_keys=Keys.ENTER
-            )
-            Error_field_val.extend(errors)
-            print(Error_field_val)
-        else:
-            msg = f"'{None}' → PCS field is mandatory ⚠️"
-            Mandatory_field.append(msg); print(msg); CustomerOrderTR.Remark(row_num, msg)
-            
-        # Wast% (0–100, 2 decimals max)
-        errors =self .fill_input(
-                wait,
-                locator=(By.NAME, f"o_item[{row}][wast_percent]"),
-                value=row_data["Wast%"],
-                pattern=r"^\d+(\.\d{1,2})?$",
-                field_name="Wast%",
-                screenshot_prefix="Wast%",
-                range_check=lambda v: 0 <= float(v) <= 100,
-                row_num=row_num
-            )
-        Error_field_val.extend(errors)
-        print(Error_field_val)  # collect errors if any
-        
-        
-        # Wait for the MC_Type field    
-        wait.until(EC.element_to_be_clickable((By.XPATH,f"(//span[contains(@id, 'id_mc_type')])[{row}]"))).click()
-        mc_field=wait.until(EC.element_to_be_clickable((By.XPATH,"/html/body/span[2]/span/span[1]/input")))
-        mc_field.clear()
-        mc_field.send_keys(row_data["MC_Type"])
-        mc_field.send_keys(Keys.ENTER)
-        
-    
-        errors =self.fill_input(
-            wait,
-            locator=(By.NAME,f"o_item[{row}][mc]"), 
-            pattern=r"^\d+(\.\d{1,2})?$",
-            value=row_data["MC_Value"], 
-            field_name="MC_Value", 
-            row_num=row_num,
-            screenshot_prefix="MC"
-            )
-        Error_field_val.extend(errors)
-        print(Error_field_val)
-        
-         # Other Charge        
-        if row_data["OtherCharge"]=="Yes":
-            self.handle_other_charges(row_data, row)
+        return self.check_calculation_and_submit(row_data, row_idx, next_no, cus_no)
 
-        # --- Rate ---
-        if row_data["Rate"]:
-            errors = self.fill_input(
-            wait,
-            locator=(By.XPATH,f"//*[@id='detail{row}']/td[20]/input"), 
-            pattern=r"^\d+(\.\d{1,2})?$",
-            value=row_data["Rate"], 
-            field_name="Rate", 
-            row_num=row_num,
-            screenshot_prefix="Rate"
-            )
-            Error_field_val.extend(errors)
-            print(Error_field_val)   # collect errors if any
-        
-        else:
-            rate_field = wait.until(EC.element_to_be_clickable((By.XPATH,f"//*[@id='detail{row}']/td[20]/input")))
-            rate_field.clear(); rate_field.send_keys(Keys.TAB)
-            driver.save_screenshot(f"Rate_{test_case_id}.png")
-            msg = f"'{None}' → Rate field is mandatory ⚠️"
-            Mandatory_field.append(msg); print(msg); CustomerOrderTR.Remark(row_num,msg)
-            
-        # Description Field    
-        if row_data["Description"]is not None:
-            self.fill_description(row_data, row)
-        else:
-            mandatory=(f"'{None}' → Description field is mandatory ⚠️")
-            Mandatory_field.append(mandatory)
-            print(mandatory)
-            CustomerOrderTR.Remark(row_num,mandatory)
-                
-        remove_map = {
-            "Product": f'//span[@id="select2-prod_{row}-container"]/span',
-            "Design": f'//span[@id="select2-dsgn_{row}-container"]/span',
-            "SubDesign": f'//span[@id="select2-sub_design_{row}-container"]/span'
-        }
-        
-        remove=row_data["Remove"]
-        if remove:
-            xpath = remove_map[remove]
-            if xpath:
-                close=wait.until(EC.element_to_be_clickable((By.XPATH, xpath)))
-                # Scroll element into view (works for left/right as well as up/down)
-                driver.execute_script("arguments[0].scrollIntoView({block: 'nearest', inline: 'center'});", close)
-                close.click()
-                placeholder_text = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
-                placeholder_text.click()
-                placeholder_name=placeholder_text.text
-        else:
-            placeholder_name=''
-            print('No Data Remove')
-            
-        missing_keys=self.Missing_data(row_data,keys_to_check)
-        print(missing_keys)   
-        # Remove 'Customer' and 'OrderBranch' from missing_keys
-        keys_to_remove = ["Customer Number", "OrderBranch", "Employee","TagScan",]
-        missing_keys = [key for key in missing_keys if key not in keys_to_remove]
-        print(Error_field_val)
-        remove_items = ["Wast%", "MC_Value"]
-        Errors_field_value = [x for x in Error_field_val if x not in remove_items]
-        print(Errors_field_value)
-        
-        if missing_keys or placeholder_name or Errors_field_value:
-            try:
-                # Add Item Button    
-                wait.until(EC.element_to_be_clickable((By.ID,"create_order"))).click()
-                alert_text = CustomerOrderTR.alert(self)
-                alert_text = CustomerOrderTR.alert(self)
+    def _fill_description(self, row_data, row_idx):
+        """Fills the Description Modal."""
+        self.fc.click(f"//tr[@id='detail{row_idx}']/td[24]/a")
+        self.fc.fill_input2("//textarea[@id='description']", str(row_data["Description"]))
+        sleep(1); self.fc.click("//a[contains(text(), 'Add')]")
 
-                Test_Status1="Pass"
-                Actual_Status= (f"⚠️ Found the message:'{alert_text}'") # prints: Select Order Branch
-                print(Actual_Status)
-            except:
-                # Collect all failed fields in one list
-                failed_fields = []
-                if missing_keys:
-                    failed_fields.extend(missing_keys)
-                if Errors_field_value:
-                    failed_fields.extend(Errors_field_value)
-                if placeholder_name:
-                    failed_fields.append(placeholder_name)
-                Test_Status1="Fail"
-                Actual_Status=(f'{failed_fields} → These Field are None to Add successfully ❌')
-                print(Actual_Status)    
-                time.sleep(3)
-            # Find all matching cancel buttons
-            if self.driver.title == "Order - Add | LOGIMAX":
-                wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@class="btn btn-default btn-cancel"]'))).click()
-                wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@class="btn btn-default btn-cancel"]'))).click()
-                print("✅ Cancel button double-clicked")
-            else:
-                print("ℹ️ Cancel button not found, skipping...")
-            return Test_Status1,Actual_Status  
-        else:
-            pass
+    def _handle_other_charges(self, row_data, row_idx):
+        """Handles adding 'Other Charges'."""
+        self.fc.click(f"//*[@id='detail{row_idx}']/td[17]/a")
+        charges_raw = row_data.get("ChargeName")
+        if not charges_raw: return
 
-        # return "Pass", "Customized Order processed ✅"
-        result = self.check_calculation_and_submit(row_data, row, gold_rate, Next_No, Cus_No)
-        return result
-    
-    def handle_tag_reserve(self, row_data, row, row_num, keys_to_check,Mandatory_field,gold_rate, Next_No, Cus_No):
-        """
-        Handles the Tag Reserve order type.
-        Fills the TagScan field, checks for missing mandatory keys,
-        validates alerts, and returns Test_Status and Actual_Status.
-        """
-        driver, wait = self.driver, self.wait
-        # Fill TagScan field
-        tag_field = wait.until(EC.element_to_be_clickable((By.ID, "est_tag_scan")))
-        tag_field.click()
-        tag_field.clear()
-        tag_field.send_keys(row_data["TagScan"])
-
-        # Get missing keys and remove optional ones
-        missing_keys = self.Missing_data(row_data, keys_to_check)
-        keys_to_remove = ["TagScan", "Purity", "GrossWt", "Pcs", "Rate", "Description"]
-        missing_keys = [key for key in missing_keys if key not in keys_to_remove]
-
-        if missing_keys:
-            # Click Tag Search button
-            wait.until(EC.element_to_be_clickable((By.ID, "tag_search"))).click()
-            try:
-                # Look for toaster alert
-                toaster_element = wait.until(EC.presence_of_element_located((By.XPATH, "//span[text()='Please select branch']")))
-                alert = toaster_element.text
-                Test_Status = "Pass"
-                Actual_Status = f"⚠️ Found the message:'{alert}'"
-                print(Actual_Status)
-            except:
-                # No alert → check field value
-                tag_input = wait.until(EC.element_to_be_clickable((By.NAME, f"o_item[{row}][tag_name]")))
-                showing_value = tag_input.get_attribute("value")
-                if showing_value == row_data["TagScan"]:
-                    Test_Status = "Fail"
-                    Actual_Status = f"{missing_keys} → These Field are None to Add successfully ❌"
-                    print(Actual_Status)
-            # Cancel the form
-            wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@class="btn btn-default btn-cancel"]'))).click()
-            return Test_Status, Actual_Status
-        else:
-            wait.until(EC.element_to_be_clickable((By.ID, "tag_search"))).click()
-        # Description Field    
-        if row_data["Description"]is not None:
-            self.fill_description(row_data, row)
-        else:
-            mandatory=(f"'{None}' → Description field is mandatory ⚠️")
-            Mandatory_field.append(mandatory)
-            print(mandatory)
-            CustomerOrderTR.Remark(row_num,mandatory)
-        result = self.check_calculation_and_submit(row_data, row, gold_rate, Next_No, Cus_No)
-        return result
-                
-                
-                
-    def fill_description(self, row_data, row):
-        """Fill Description field or log it as mandatory."""
-        driver, wait = self.driver, self.wait
-        # Click the edit icon
-        wait.until(EC.element_to_be_clickable((By.XPATH, f"//tr[@id='detail{row}']/td[24]/a/i"))).click()
-        # Fill description
-        desc_field = wait.until(EC.element_to_be_clickable((By.ID, "description")))
-        desc_field.clear()
-        desc_field.send_keys(str(row_data["Description"]))  # ensure it's string
-        # Click Add button
-        sleep(2)
-        wait.until(EC.element_to_be_clickable((By.PARTIAL_LINK_TEXT, "Add"))).click()
-        print(f"✅ Description filled: {row_data['Description']}")
-        
-    
-        
-    def handle_other_charges(self, row_data, row):
-        """
-        Handles adding 'Other Charges' if applicable.
-        Supports multiple charges (comma-separated) and random auto-values.
-        """
-        driver, wait = self.driver, self.wait
-
-        if row_data.get("OtherCharge") != "Yes":
-            print("ℹ️ No other charges needed")
-            return
-
-        # Open Other Charge section
-        wait.until(EC.element_to_be_clickable((By.XPATH, f"//*[@id='detail{row}']/td[17]/a"))).click()
-
-        charges_raw = row_data["ChargeName"]
-        if not charges_raw:
-            print("⚠️ OtherCharge flag is Yes but no ChargeName provided")
-            return
-
-        charges_list = [s.strip() for s in charges_raw.split(",")]
-
+        charges_list = [s.strip() for s in str(charges_raw).split(",")]
         for idx, charge in enumerate(charges_list):
-            # For the 2nd, 3rd, ... charges → click +Add
-            if idx > 0:
-                wait.until(EC.element_to_be_clickable((By.ID, "add_new_charge"))).click()
+            if idx > 0: self.fc.click("//button[@id='add_new_charge']")
+            self.fc.select_visible_text(f"(//select[@name='est_stones_item[id_charge][]'])[{idx+1}]", charge)
+            val_xpath = f"(//input[@name='est_stones_item[value_charge][]'])[{idx+1}]"
+            if self.fc.get_value(val_xpath) in ["0.00", "0", ""]: self.fc.fill_input2(val_xpath, "500")
 
-            # Select charge type
-            charge_dropdown = wait.until(EC.element_to_be_clickable(
-                (By.XPATH, f'(//select[@name="est_stones_item[id_charge][]"])[{idx+1}]')
-            ))
-            Select(charge_dropdown).select_by_visible_text(charge)
+        self.fc.click("//button[@id='update_charge_details']")
 
-            # Locate corresponding value field (same row as idx+1)
-            value_input = wait.until(EC.presence_of_element_located(
-                (By.XPATH, f"(//input[@name='est_stones_item[value_charge][]'])[{idx+1}]")
-            ))
+    def _handle_item_removal(self, remove_field, row_idx):
+        """Removes a field value as specified in Excel."""
+        remove_map = {"Product": f"prod_{row_idx}", "Design": f"dsgn_{row_idx}", "SubDesign": f"sub_design_{row_idx}"}
+        xpath = f'//span[@id="select2-{remove_map.get(remove_field)}-container"]/span'
+        if xpath: self.fc.click(xpath)
 
-            current_value = value_input.get_attribute("value").strip()
-
-            # If empty or "0.00" → auto-fill random multiple of 100
-            if current_value == "0.00":
-                random_value = random.randint(1, 10) * 100
-                time.sleep(1)
-                value_input.clear()
-                value_input.send_keys(str(random_value))
-                print(f"⚡ Added random value {random_value} for {charge}")
-            else:
-                print(f"✅ Auto value {current_value} kept for {charge}")
-
-        # Save button
-        wait.until(EC.element_to_be_clickable((By.ID, "update_charge_details"))).click()
-        print("Field✅ OtherCharges added:", charges_list)
-
-        # Scroll down if row is beyond 4
-        if row >= 4:
-            scroll = row * 100
-            driver.execute_script(f"window.scrollBy(0, {scroll});")
-            time.sleep(2)
-
-    
-    
-    def Remark(row_num,Field_validation_satus): 
-        # Load the workbook
-        workbook = load_workbook(FILE_PATH)
-        sheet = workbook.active  # or workbook["SheetName"]
-        if Field_validation_satus:
-            sheet.cell(row=row_num, column=31, value=Field_validation_satus).font = Font(bold=True, color="FF8000")
-        # Save workbook
-        workbook.save(FILE_PATH) 
+    def check_calculation_and_submit(self, row_data, row_idx, next_no, cus_no):
+        """Verifies calculations and submits the order."""
+        cal_val_raw = self.fc.get_value(f"//input[@name='o_item[{row_idx}][calculation_based_on]']")
         
-    def update_excel_status(self,row_num, Test_Status, Actual_Status, function_name):
-        print(function_name)
-        # Load the workbook
-        workbook = load_workbook(FILE_PATH)
-        sheet = workbook[function_name]  # or workbook["SheetName"]
+        # Get dynamic gold rate based on purity
+        gold_rate = self._get_dynamic_gold_rate(row_idx)
         
-        if Test_Status== 'Pass':
-            # Write Test_Status into column 2
-            sheet.cell(row=row_num, column=2, value=Test_Status).font=Font(bold=True, color="00B050")
-            
-            # Write Actual_Status in col 3 
-            sheet.cell(row=row_num, column=3, value=Actual_Status).font = Font(bold=True, color="00B050")
-        if Test_Status=='Fail':
-            # Write Test_Status into column 2
-            sheet.cell(row=row_num, column=2, value=Test_Status).font=Font(bold=True, color="FF0000")
-            # Write Actual_Status in col 3 
-            sheet.cell(row=row_num, column=3, value=Actual_Status).font = Font(bold=True, color="FF0000")
-        # Save workbook
-        workbook.save(FILE_PATH)
-        # Get status from ExcelUtils
-        Status = ExcelUtils.get_Status(FILE_PATH, function_name)
-        # Print and return status
-        print(Status)
-        return Status
-                    
-    
-                    
-    def Missing_data(self,row_data,keys_to_check):
-        missing_keys = [key for key in keys_to_check if row_data.get(key) is None]
-        print(missing_keys)       
-        return missing_keys       
-    
-    def alert(self):
-        driver = self.driver
-        # Wait until alert is present
-        alert = WebDriverWait(driver, 10).until(lambda d: d.switch_to.alert)
-        # Get the text from the alert
-        alert_text = alert.text
-        # Accept the alert (click OK)
-        alert.accept()
-        return alert_text
-    
-    def alert1(self):
-        wait = self.wait 
-        # Wait for toaster message to appear
-        wait.until(EC.element_to_be_clickable((By.ID,"add_order_item"))).click()
-        alert_msg = wait.until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "#toaster .alert"))
-        ).text
-        alert_text = re.sub(r"[×\s]*Close", "", alert_msg).replace("\n", "").strip()
-        # alert_text = alert_msg.replace("×Close", "").replace("\n", "").strip()
-        Test_Status="Pass"
-        Actual_Status= (f"⚠️ Found the message:'{alert_text}'") # prints: Select Order Branch
-        print(Actual_Status)
-        return alert_text
-
-    
-    # ---------- Helpers ----------
-    def add_mandatory(self, field, row_num):
-        msg = f"'{None}' → {field} field is mandatory ⚠️"
-        self.Mandatory_field.append(msg)
-        print(msg)
-        CustomerOrderTR.Remark(row_num, msg)
-
-    def select1_fill(self,wait, click_xpath, value):
-        """Reusable function to handle select2 dropdowns"""
-        wait = self.wait
-        wait.until(EC.element_to_be_clickable((By.XPATH, click_xpath))).click()
-        input_box = wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/span/span/span[1]/input")))
-        input_box.clear()
-        input_box.send_keys(value, Keys.ENTER)
-        time.sleep(1)
-   
-   
-    def select2_fill(self,wait, click_xpath, value):
-        """Reusable function to handle select2 dropdowns"""
-        wait = self.wait
-        sleep(3)
-        wait.until(EC.element_to_be_clickable((By.XPATH, click_xpath))).click()
-        sleep(2)
-        input_box = wait.until(EC.element_to_be_clickable((By.XPATH, "/html/body/span[2]/span/span[1]/input")))
-        input_box.clear()
-        input_box.send_keys(value, Keys.ENTER)
-        time.sleep(1)
-    
-    def fill_input(self, wait,locator, value, field_name, row_num,pattern=None, screenshot_prefix="", extra_keys=None, range_check=None):
-        """Generic handler for text/numeric fields with validation and optional range check."""
-        errors = []
-        driver, wait = self.driver, self.wait
-        test_case_id = row_num
-        field = wait.until(EC.element_to_be_clickable(locator))
-        field.click()
-        field.clear()
-        if value is not None:
-            field.send_keys(value)
-            if extra_keys:
-                field.send_keys(extra_keys)
-        entered_value = field.get_attribute("value")
-
-        if entered_value == "":
-            driver.save_screenshot(f"{screenshot_prefix}_{test_case_id}.png")
-            msg = f"{value} → Not allowed in {field_name} ⚠️"
-            CustomerOrderTR.Remark(row_num, msg)
-            errors.append(field_name)
-            return errors
-
-        # Regex / Range check
-        valid = True
-        if pattern:
-            valid = re.fullmatch(pattern, entered_value) is not None
-        if valid and range_check:
+        calc_result = self.calculation(cal_val_raw, row_idx, gold_rate)
+        ceil_val, table_val, cal_type = calc_result
+        
+        if abs(float(ceil_val or 0) - float(table_val or 0)) > 1:
+            self.driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, f"CalcError_{row_data['TestCaseId']}.png"))
+            Function_Call.click(self,'//button[@class="btn btn-default btn-cancel"]')
+            print(f"Row {row_idx} - {cal_type} | Expected: {ceil_val}, Found: {table_val}")
+            return "Fail", f"❌ {cal_type} mismatch. Expected: {ceil_val}, Found: {table_val}"
+        
+        print(f"✅ {cal_type} calculation verified.")
+        if next_no == cus_no: 
+            return cus_no
+        
+        self.fc.click("//button[@id='create_order']")
+        try:
+            msg = self.fc.get_text("/html/body/div[1]/div[1]/section[2]/div/div/div/div[2]/div[1]/div/div").replace("×", "").replace("\n", "").strip()
+            if "successfully" in msg.lower():
+                sleep(2)  # Wait for page stabilization/redirect
+                return ("Pass", f"✅ {msg}")
+            return ("Fail", f"❌ {msg}")
+        except UnexpectedAlertPresentException as e:
+            # Capturing Desktop screenshot to include the alert pop-up
             try:
-                valid = range_check(float(entered_value))
-            except:
-                valid = False
-
-        if not valid:
-            driver.save_screenshot(f"{screenshot_prefix}_{test_case_id}.png")
-            msg = f"'{entered_value}' → Not allowed in {field_name} ❌"
-            CustomerOrderTR.Remark(row_num, msg)
-            errors.append(field_name)           
-        else:
-            print(f"'{entered_value}' → Accepted {field_name} ✅")
-        return errors
-        
-    
-    def check_calculation_and_submit(self, row_data, row, gold_rate, Next_No, Cus_No):
-        driver, wait = self.driver, self.wait
-
-        # Check the Calculation type
-        Cal_value=wait.until(EC.presence_of_element_located((By.XPATH,f'(//input[@name="o_item[{row}][calculation_based_on]"])')))
-        Cal_current_value = Cal_value.get_attribute("value").strip()
-        print(Cal_current_value)
-        
-        # Call The Calculation function
-        Cal_val=CustomerOrderTR.calculation(self,Cal_current_value,row,gold_rate)
-        ceil_value,Taxable_Amt,Cal_type= Cal_val
-        if ceil_value == Taxable_Amt:
-            print("✅ Taxable Amount calculation is correct")
-        else:
-            driver.save_screenshot(f"{Cal_type}_{row_data['TestCaseId']}.png")
-            Test_Status="Fail"
-            Actual_Status = f"❌ {Cal_type} incorrect. Expected: {ceil_value}, Table shows: {Taxable_Amt}"
-            return Test_Status,Actual_Status
-        
-        if Next_No == Cus_No:
-            return Cus_No
-        else:
-            if row >= 3:
-                # row=row+2
-                # scroll = row * 100
-                # driver.execute_script(f"window.scrollBy(0, {scroll});") 
-                sleep(3)
-            else:
-                pass    
+                screenshot_path = os.path.join(ExcelUtils.SCREENSHOT_PATH, "SubmitError.png")
+                ImageGrab.grab().save(screenshot_path)
+                print(f"✅ Desktop screenshot captured: {screenshot_path}")
+            except Exception as se:
+                print(f"⚠️ Desktop screenshot failed: {se}")
             
-            create_order_btn = wait.until(EC.element_to_be_clickable((By.ID, "create_order")))
-            # Scroll the element into view (up/down, left/right if needed)
-            driver.execute_script("arguments[0].scrollIntoView({block: 'nearest', inline: 'center'});",create_order_btn)
-            sleep(2)
-            # Perform JavaScript click (bypasses overlay issues)
-            driver.execute_script("arguments[0].click();", create_order_btn)
-
+            alert_text = e.alert_text or "Required fields missing"
+            print(f"⚠️ Caught Alert: {alert_text}")
             try:
-                message = wait.until(EC.element_to_be_clickable((By.XPATH,"/html/body/div[1]/div[1]/section[2]/div/div/div/div[2]/div[1]/div/div"))).text
-                message =message.replace("×",'').replace("\n",'')
-                print(message)                   
-                expected_message = "Add Order!New Order added successfully"
-                driver.save_screenshot('cus.png.png')
-                if message == expected_message:
-                        Test_Status="Pass"
-                        Actual_Status= f'✅ {message}'
-                else:
-                    Test_Status="Fail"
-                    Actual_Status= f'❌ {message}'
+                self.driver.switch_to.alert.accept()
+                self.driver.switch_to.alert.accept()
             except:
-                driver.save_screenshot('Cuserror.png.png')
-                Test_Status="Fail"
-                Actual_Status="❌ New Order not added successfully"  
-            return Test_Status,Actual_Status
-       
-    def calculation(self,Cal_current_value,row,gold_rate):
-        wait = self.wait 
-        data = {
+                pass
+            Function_Call.click(self, '//button[@class="btn btn-default btn-cancel"]')
+            Function_Call.click(self, '//button[@class="btn btn-default btn-cancel"]')
+            return "Fail", f"❌ Alert: {alert_text}"
+        except Exception as e:
+            print(f"⚠️ Submit Error: {e}")
+            self.driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, "SubmitError.png"))
+            Function_Call.click(self, '//button[@class="btn btn-default btn-cancel"]')
+            return "Fail", "❌ Order submission failed."
+
+    def _get_dynamic_gold_rate(self, row_idx):
+        """Extracts purity from UI and returns the matching board rate."""
+        try:
+            from selenium.webdriver.support.ui import Select
+            purity_dropdown = Select(self.wait.until(EC.presence_of_element_located((By.ID, f"purity{row_idx}"))))
+            purity = purity_dropdown.first_selected_option.text.strip()
+            print(f"Selected Purity: {purity}")
+
+            if "916" in purity:
+                rate = self.Board_Rate[0]
+            elif "75" in purity:
+                rate = self.Board_Rate[1]
+            elif "92.5" in purity:
+                rate = self.Board_Rate[2]
+            else:
+                rate = self.Board_Rate[0]  # Default to 22KT
+            
+            print(f"Using Dynamic Gold Rate: {rate}")
+            return rate
+        except Exception as e:
+            print(f"⚠️ Error fetching dynamic rate: {e}")
+            return self.Board_Rate[0] if self.Board_Rate else 0
+
+    def calculation(self, cal_type_idx, row_idx, gold_rate):
+        """Helper to compute expected Taxable Amount with detailed logic."""
+        wait = self.wait
+        data_map = {
             "0": "Mc & Wast On Gross",
             "1": "Mc & Wast On Net",
             "2": "Mc on Gross, Wast On Net",
             "3": "Fixed Rate",
             "4": "Fixed Rate based on Weight"
         }
-        Cal_type = data[str(Cal_current_value)]   # convert int → str because keys are strings
-        print(Cal_type)
-        
-         # --- Helper to fetch field values safely ---
-        def get_val(by, locator, cast=float, default=0):
-            el = wait.until(EC.presence_of_element_located((by, locator)))
-            val = el.get_attribute("value")
-            if not val:  
+        cal_type = data_map.get(str(cal_type_idx), "Unknown")
+        print(f"Calculation Type: {cal_type}")
+
+        def get_v(by, locator, cast=float, default=0.0):
+            try:
+                el = wait.until(EC.presence_of_element_located((by, locator)))
+                val = el.get_attribute("value")
+                return cast(val) if val else default
+            except:
                 return default
-            return cast(val)
 
-        # Fetch values with one-liners
-        Gwt   = get_val(By.NAME, f"o_item[{row}][weight]")
-        Lwt   = get_val(By.NAME, f"o_item[{row}][less_wt]")
-        Nwt   = get_val(By.NAME, f"o_item[{row}][net_wt]")
-        PCS   = get_val(By.NAME, f"o_item[{row}][totalitems]", cast=int)
-        Stone = get_val(By.NAME, f"o_item[{row}][stn_amt]")
-        Wast_per = get_val(By.NAME, f"o_item[{row}][wast_percent]")
-        Wast  = get_val(By.NAME, f"o_item[{row}][wast_wgt]")
-        Mc    = get_val(By.NAME, f"o_item[{row}][mc]")
-        other_Amt =get_val(By.NAME, f'o_item[{row}][value_charge]',cast=int)
+        # Fetch all required fields
+        gwt = get_v(By.NAME, f"o_item[{row_idx}][weight]")
+        nwt = get_v(By.NAME, f"o_item[{row_idx}][net_wt]")
+        stone_amt = get_v(By.NAME, f"o_item[{row_idx}][stn_amt]")
+        wast_per = get_v(By.NAME, f"o_item[{row_idx}][wast_percent]")
+        mc_rate = get_v(By.NAME, f"o_item[{row_idx}][mc]")
+        other_amt = get_v(By.NAME, f"o_item[{row_idx}][value_charge]")
+        table_taxable = get_v(By.NAME, f"o_item[{row_idx}][taxable]")
 
-        # Taxable amount kept as string (not converted to float)
-        Taxable_Amt = wait.until(
-            EC.presence_of_element_located((By.NAME, f"o_item[{row}][taxable]"))
-        ).get_attribute("value")
+        # Fetch MC type from select2 container
+        try:
+            mc_type = wait.until(
+                EC.presence_of_element_located((By.XPATH, f'//span[contains(@id,"o_item[{row_idx}][id_mc_type]")]'))
+            ).get_attribute("title")
+        except:
+            mc_type = "Gram"
 
-        # MC type
-        Mc_type = wait.until(
-            EC.presence_of_element_located(
-                (By.XPATH, f'//span[contains(@id,"o_item[{row}][id_mc_type]")]')
-            )
-        ).get_attribute("title")
+        print(f"Gwt={gwt}, Nwt={nwt}, Stone={stone_amt}, Wast%={wast_per}, MC={mc_rate}, MC_Type={mc_type}, Other={other_amt}, Table_Taxable={table_taxable}")
 
-        # Debug print all values
-        print(f"Gwt={Gwt}, Lwt={Lwt}, Nwt={Nwt}, PCS={PCS}, Stone={Stone}, "
-            f"Wast_per={Wast_per}, Wast={Wast}, Mc={Mc}, Mc_type={Mc_type}, "
-            f"Taxable={Taxable_Amt}")
-        gross_weight=Gwt
-        net_weight = Nwt  
-        wastage_percentage = Wast_per 
-        Making_cost_pergram = Mc 
-        diamond_cost =Stone
-        Charge_Amt = other_Amt
-        
-        # initialize
-        ceil_value = None
-        
-        if Cal_type=="Mc on Gross, Wast On Net":
-           # calculation making cost on gross Wastage% on Net  
-            if Mc_type == 'Piece':
-                mc =Making_cost_pergram
-            else:    
-                Mc=Making_cost_pergram*gross_weight
-                mc=float('{:.2f}'.format(math.ceil(Mc)))
-            Va = (wastage_percentage/100)*net_weight
-            Va = round(Va, 3)
-            total = net_weight+Va
-            total = round(total, 3)
-            Cal = (total*gold_rate)+diamond_cost+mc+Charge_Amt
-            ceil_value=("{:.2f}".format(math.ceil(Cal)))
-            print(ceil_value)
-            
-            
-        if  Cal_type=="Mc & Wast On Net":
-            # calculation making cost & Wastage% on Net  
-            if Mc_type == 'Piece':
-                mc =Making_cost_pergram
-            else:    
-                Mc=Making_cost_pergram*net_weight
-                mc=float("{:.2f}".format(math.ceil(Mc)))
-            Va = (wastage_percentage/100)*net_weight
-            Va= round(Va, 3)
-            total = net_weight+Va
-            total = round(total, 3)
-            Cal2 = total*gold_rate+mc+diamond_cost+Charge_Amt
-            ceil_value=("{:.2f}".format(math.ceil(Cal2)))
+        ceil_value = 0.0
 
-                        
-        if  Cal_type == "Mc & Wast On Gross":
-            # calculation making cost & Wastage% on Gross 81148.00
-            if Mc_type == 'Piece':
-                mc =Making_cost_pergram
-            else:    
-                Mc=Making_cost_pergram*gross_weight
-                Mc= gross_weight*Making_cost_pergram
-                mc=float("{:.2f}".format(math.ceil(Mc)))
-           
-            Va = (wastage_percentage/100)*gross_weight
-            Va = round(Va, 3)
-            total= net_weight+Va
-            total = round(total, 3)
-            cal3 = total*gold_rate+mc+diamond_cost+Charge_Amt
-            ceil_value=("{:.2f}".format(math.ceil(cal3)))
-            
-        if Cal_type== "Fixed Rate based on Weight":
-            if Mc_type=='Piece':
-                mc = Making_cost_pergram
-            else:
-                Mc=Making_cost_pergram*gross_weight
-                mc=float('{:.2f}'.format(math.ceil(Mc)))
-            Va = (wastage_percentage/100)*gross_weight
-            Va = round(Va, 3)
-            total= net_weight+Va
-            total = round(total, 3)
-            cal3 = total*gold_rate+mc+diamond_cost+Charge_Amt
-            ceil_value=("{:.2f}".format(math.ceil(cal3)))
-        
-        if Cal_type == "Fixed Rate":
-            ceil_value=Taxable_Amt
-            
+        if cal_type == "Mc on Gross, Wast On Net":
+            # Making cost on Gross, Wastage on Net
+            mc = mc_rate if mc_type == 'Piece' else math.ceil(mc_rate * gwt)
+            va = round((wast_per / 100) * nwt, 3)
+            total_wt = round(nwt + va, 3)
+            calc_val = (total_wt * gold_rate) + stone_amt + mc + other_amt
+            ceil_value = math.ceil(calc_val)
 
-        print(ceil_value)
-        print(type(ceil_value))
-        return ceil_value,Taxable_Amt,Cal_type
+        elif cal_type == "Mc & Wast On Net":
+            # Making cost & Wastage on Net
+            mc = mc_rate if mc_type == 'Piece' else math.ceil(mc_rate * nwt)
+            va = round((wast_per / 100) * nwt, 3)
+            total_wt = round(nwt + va, 3)
+            calc_val = (total_wt * gold_rate) + mc + stone_amt + other_amt
+            ceil_value = math.ceil(calc_val)
 
+        elif cal_type == "Mc & Wast On Gross":
+            # Making cost & Wastage on Gross
+            mc = mc_rate if mc_type == 'Piece' else math.ceil(mc_rate * gwt)
+            va = round((wast_per / 100) * gwt, 3)
+            total_wt = round(nwt + va, 3)
+            calc_val = (total_wt * gold_rate) + mc + stone_amt + other_amt
+            ceil_value = math.ceil(calc_val)
 
+        elif cal_type == "Fixed Rate based on Weight":
+            # Making cost on weight, Wastage on Gross
+            mc = mc_rate if mc_type == 'Piece' else math.ceil(mc_rate * gwt)
+            va = round((wast_per / 100) * gwt, 3)
+            total_wt = round(nwt + va, 3)
+            calc_val = (total_wt * gold_rate) + mc + stone_amt + other_amt
+            ceil_value = math.ceil(calc_val)
 
+        elif cal_type == "Fixed Rate":
+            ceil_value = table_taxable
 
+        print(f"Calculated Ceil Value: {ceil_value}")
+        return ceil_value, table_taxable, cal_type
 
-
-
+    def update_excel_status(self, row_num, test_status, actual_status, sheet_name):
+        """Writes the test result back to Excel."""
+        workbook = load_workbook(FILE_PATH); sheet = workbook[sheet_name]
+        color = "00B050" if test_status == "Pass" else "FF0000"
+        sheet.cell(row=row_num, column=2, value=test_status).font = Font(bold=True, color=color)
+        sheet.cell(row=row_num, column=3, value=actual_status).font = Font(bold=True, color=color)
+        workbook.save(FILE_PATH)

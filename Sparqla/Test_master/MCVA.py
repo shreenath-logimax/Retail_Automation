@@ -8,6 +8,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from time import sleep
+import os
 import unittest
 import re
 from Utils.Excel import ExcelUtils
@@ -363,7 +364,7 @@ class McVa(unittest.TestCase):
                 Message = Message.replace("×", "").replace("\n", " ").strip()
                 print(Message)
                 expected_message ="Delete WA Settings! Successfully Delete WA Settings" 
-                driver.save_screenshot('delete.png.png')
+                driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, 'delete.png.png'))
                 if Message == expected_message:
                         Test_Status="Pass"
                         Actual_Status= Message
@@ -371,7 +372,7 @@ class McVa(unittest.TestCase):
                     Test_Status="Fail"
                     Actual_Status= Message
             except:
-                driver.save_screenshot('delete.png.png')
+                driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, 'delete.png.png'))
                 Test_Status="Fail"
                 Actual_Status="Sub Design Not Add Successfully"
         else: 

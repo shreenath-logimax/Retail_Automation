@@ -7,6 +7,7 @@ from selenium.common.exceptions import NoAlertPresentException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from time import sleep
+import os
 import unittest
 from Utils.Excel import ExcelUtils
 from openpyxl import load_workbook
@@ -149,7 +150,7 @@ class Design(unittest.TestCase):
             wait.until(EC.element_to_be_clickable((By.XPATH,"//input[@type='search']"))).send_keys(Delete_Design)
             wait.until(EC.element_to_be_clickable((By.XPATH,"//table[@id='design_list']/tbody/tr/td[5]/a[2]/i"))).click()
             wait.until(EC.element_to_be_clickable((By.ID,"remove_design"))).click()
-            driver.save_screenshot('deleted.png.png')
+            driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, 'deleted.png.png'))
             try:
                 deleteDesign = wait.until(EC.element_to_be_clickable((By.XPATH,"/html/body/div/div[1]/section[2]/div/div/div/div[2]/div[1]/div/div"))).text
                 print(deleteDesign)

@@ -14,12 +14,13 @@ from openpyxl.styles import Font
 from Utils.Excel import ExcelUtils
 from datetime import datetime
 import re
+import os
 
 FILE_PATH=ExcelUtils.file_path
 class Function_Call(unittest.TestCase):
     def __init__(self,driver):
         self.driver =driver   
-        self.wait = WebDriverWait(driver, 5)
+        self.wait = WebDriverWait(driver, 20)
         
     def click2(self,xpath):
         wait = self.wait
@@ -38,20 +39,55 @@ class Function_Call(unittest.TestCase):
             sleep(2)
             clicked.click()
             
-    def click(self,xpath):
+    def click(self, xpath):
         wait = self.wait
-        driver=self.driver 
+        driver = self.driver 
         try:
-            element = wait.until(EC.element_to_be_clickable((By.XPATH, xpath)))
-            element.click()
-            print("✅ Clicked1:", xpath)
-        except Exception:
-            sleep(2)
-            clicked= wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
-            ActionChains(driver).move_to_element(clicked).perform()
-            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", clicked)
-            clicked.click()
-            print("✅ Clicked2:", xpath)
+            # 1. Wait for element to be present
+            element = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
+            
+            # 2. Try standard scroll and click
+            try:
+                # Scroll into view (center)
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center', inline: 'nearest'});", element)
+                sleep(0.5)
+                # Traditional click
+                wait.until(EC.element_to_be_clickable((By.XPATH, xpath))).click()
+                print("✅ Clicked (Standard):", xpath)
+                return
+            except Exception as e:
+                print(f"⚠️ Standard click failed for {xpath}, attempting robust fallback... Error: {str(e)}")
+            
+            # 3. Robust Fallback: ActionChains Move + JS Click
+            sleep(1)
+            # Re-locate to avoid stale element
+            clicked = wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
+            
+            # Move mouse to element (triggers hover and ensures visibility for some frameworks)
+            try:
+                ActionChains(driver).move_to_element(clicked).perform()
+            except:
+                pass
+            
+            # Use JS to trigger the click with event bubbling
+            js_script = """
+            var el = arguments[0];
+            var ev = document.createEvent('MouseEvents');
+            ev.initMouseEvent('mousedown', true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+            el.dispatchEvent(ev);
+            ev.initMouseEvent('mouseup', true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null);
+            el.dispatchEvent(ev);
+            el.click();
+            """
+            driver.execute_script(js_script, clicked)
+            print("✅ Clicked (Robust JS):", xpath)
+            
+        except Exception as e2:
+            print(f"❌ All click attempts failed for {xpath}. Error: {str(e2)}")
+            # Take screenshot on total failure
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, f"ClickError_{timestamp}.png"))
+            raise e2
         
             
     
@@ -107,6 +143,7 @@ class Function_Call(unittest.TestCase):
         field.send_keys(value)
         sleep(2)
         field.send_keys(Keys.BACKSPACE)
+
         wait.until(EC.presence_of_element_located((By.XPATH, f"//li[contains(text(),'{value}')]"))).click()   
             
     def select_visible_text(self, locator,  value):
@@ -132,16 +169,22 @@ class Function_Call(unittest.TestCase):
         field.clear()
         
         if value is not None:
+            # Handle datetime objects
+            if isinstance(value, datetime):
+                value = value.strftime("%d-%m-%Y")
+            else:
+                value = str(value)
+                
             field.send_keys(value)
             if extra_keys:
                 field.send_keys(extra_keys)
         entered_value = field.get_attribute("value")
         if entered_value == "" or entered_value=='0':
-            driver.save_screenshot(f"{screenshot_prefix}_{test_case_id}.png")
+            driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, f"{screenshot_prefix}_{test_case_id}.png"))
             msg = f"{value} → Not allowed in {field_name} ⚠️"
             Function_Call.Remark(self,row_num, msg, Sheet_name)
             errors.append(field_name)
-            return errors
+            return "Fail",msg
 
         # Regex / Range check
         valid = True
@@ -155,24 +198,61 @@ class Function_Call(unittest.TestCase):
         
         if Date_range:
             try:
-                entered_date = datetime.strptime(entered_value, "%d-%m-%Y").date()
-                if entered_date <= datetime.today().date():
-                    raise ValueError("Not a future date")
-            except:
-                driver.save_screenshot(f"{screenshot_prefix}_{test_case_id}.png")
-                msg = f"{field_name} must be a FUTURE date → {entered_value}"
+                # Normalize separator to '-' for strptime compatibility
+                normalized_date = entered_value.replace("/", "-")
+                entered_date = datetime.strptime(normalized_date, "%d-%m-%Y").date()
+                today = datetime.today().date()
+                
+                error_msg = None
+                
+                # Validation based on specific modes
+                if Date_range == "future":
+                    if entered_date < today:
+                        pass
+                    else:
+                        error_msg = f"{field_name} must be a FUTURE date -> {entered_value}"
+                
+                if Date_range == "past":
+                    if entered_date > today:
+                        pass
+                    else:
+                        error_msg = f"{field_name} must be a PAST date -> {entered_value}"
+                
+                if Date_range in ["current", "today"]:
+                    if entered_date != today:
+                        pass
+                    else:
+                        error_msg = f"{field_name} must be TODAY'S date -> {entered_value}"
+                        
+                if Date_range == "future_or_current":
+                    if entered_date <= today:
+                        pass
+                    else:
+                        error_msg = f"{field_name} must be TODAY or FUTURE date -> {entered_value}"
+                        
+                if Date_range == "past_or_current":
+                    if entered_date >= today:
+                        pass
+                    else:
+                        error_msg = f"{field_name} must be TODAY or PAST date -> {entered_value}"                
+                if error_msg:
+                    raise ValueError(error_msg)
+            except Exception as e:
+                driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, f"{screenshot_prefix}_{test_case_id}.png"))
+                msg = str(e) if "must be" in str(e) else f"{field_name} invalid date format or criteria -> {entered_value}"
                 Function_Call.Remark(self, row_num, msg, Sheet_name)
                 errors.append(field_name)
-                return errors
+                return "Fail",msg
 
         if not valid:
-            driver.save_screenshot(f"{screenshot_prefix}_{test_case_id}.png")
-            msg = f"'{entered_value}' → Invalid data allowed in {field_name} ❌"
+            driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, f"{screenshot_prefix}_{test_case_id}.png"))
+            msg = f"'{entered_value}' -> Invalid data allowed in {field_name} [FAIL]"
             Function_Call.Remark(self,row_num, msg, Sheet_name)
             errors.append(field_name)
+            return "Fail",msg
         else:
             print(f"'{entered_value}' → Accepted {field_name} ✅")
-        return errors
+        return "Pass"
     
     def fill_input2(self,xpath, value, clear=True):
         wait = self.wait
@@ -192,6 +272,12 @@ class Function_Call(unittest.TestCase):
         field.click()
         field.clear()
         if value is not None:
+            # Handle datetime objects
+            if isinstance(value, datetime):
+                value = value.strftime("%d-%m-%Y")
+            else:
+                value = str(value)
+                
             field.send_keys(value)
             if extra_keys:
                 field.send_keys(extra_keys)
@@ -201,14 +287,14 @@ class Function_Call(unittest.TestCase):
                     print(msg)
                     Function_Call.Remark(self,row_num, msg, Sheet_name)
                     errors.append(field_name)
-                    return errors        
+                    return  "Fail", msg
         entered_value = field.get_attribute("value")
         if entered_value == "":
-            driver.save_screenshot(f"{screenshot_prefix}_{test_case_id}.png")
+            driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, f"{screenshot_prefix}_{test_case_id}.png"))
             msg = f"{value} → Not allowed in {field_name} ⚠️"
             Function_Call.Remark(self,row_num, msg, Sheet_name)
             errors.append(field_name)
-            return errors
+            return "Fail",msg
 
         # Regex / Range check
         valid = True
@@ -221,14 +307,14 @@ class Function_Call(unittest.TestCase):
                 valid = False
 
         if not valid:
-            driver.save_screenshot(f"{screenshot_prefix}_{test_case_id}.png")
-            msg = f"'{entered_value}' → Not allowed in {field_name} ❌"
+            driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, f"{screenshot_prefix}_{test_case_id}.png"))
+            msg = f"'{entered_value}' -> Not allowed in {field_name} [FAIL]"
             Function_Call.Remark(self,row_num, msg, Sheet_name)
             errors.append(field_name)
-            
+            return "Fail",msg
         else:
-            print(f"'{entered_value}' → Accepted {field_name} ✅")
-        return errors
+            print(f"'{entered_value}' -> Accepted {field_name} [OK]")
+        return "Pass"
     
     
     def Remark(self,row_num,Field_validation_satus,Sheet_name): 
@@ -271,9 +357,9 @@ class Function_Call(unittest.TestCase):
             #     EC.visibility_of_element_located((By.CSS_SELECTOR, "#toaster .alert"))
             # ).text
             print(alert_msg)
-            alert_text = re.sub(r"[×\s]*Close", "", alert_msg).replace("\n", "").strip()
-            # alert_text = alert_msg.replace("×Close", "").replace("\n", "").strip()
-            Actual_Status= (f"⚠️ Found the message:'{alert_text}'") # prints: Select Order Branch
+            alert_text = re.sub(r"[x\s]*Close", "", alert_msg).replace("\n", "").strip()
+            # alert_text = alert_msg.replace("xClose", "").replace("\n", "").strip()
+            Actual_Status= (f"[WARN] Found the message:'{alert_text}'") # prints: Select Order Branch
             print(Actual_Status)
         except:
             alert_text =None
@@ -288,23 +374,26 @@ class Function_Call(unittest.TestCase):
             EC.presence_of_element_located((By.CSS_SELECTOR, "#toaster .alert"))
             ).text
             print(alert_txt)
-            driver.save_screenshot(f"{screenshot_prefix}_{test_case_id}.png")
+            driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, f"{screenshot_prefix}_{test_case_id}.png"))
             print(alert_txt)
-            alert_text = re.sub(r"[×\s]*Close", "", alert_txt).replace("\n", "").strip()
+            alert_text = re.sub(r"[x\s]*Close", "", alert_txt).replace("\n", "").strip()
         except:
             alert_text =None
         return alert_text
     
        
     def alert(self):
-        driver = self.driver
-        # Wait until alert is present
-        alert = WebDriverWait(driver, 10).until(lambda d: d.switch_to.alert)
-        # Get the text from the alert
-        alert_text = alert.text
-        # Accept the alert (click OK)
-        alert.accept()
-        return alert_text
+        try:
+            driver = self.driver
+            # Wait until alert is present
+            alert = WebDriverWait(driver, 10).until(lambda d: d.switch_to.alert)
+            # Get the text from the alert
+            alert_text = alert.text
+            # Accept the alert (click OK)
+            alert.accept()
+            return alert_text
+        except:
+            return None
     
     def dropdown_subdesign_val(self,xpath, value,text_xpath,purity,before_purity,before_subdesign):
             wait = self.wait
@@ -328,9 +417,9 @@ class Function_Call(unittest.TestCase):
             EC.presence_of_element_located((By.CSS_SELECTOR, "#toaster .alert"))
             ).text
             print(alert_txt)
-            driver.save_screenshot("Subdesign.png")
+            driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, "Subdesign.png"))
             print(alert_txt)
-            alert_text = re.sub(r"[×\s]*Close", "", alert_txt).replace("\n", "").strip()
+            alert_text = re.sub(r"[x\s]*Close", "", alert_txt).replace("\n", "").strip()
         except:
             alert_text =None
         return alert_text

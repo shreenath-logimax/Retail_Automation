@@ -32,7 +32,9 @@ class ExcelUtils:
     #         print(f"Created Excel copy at: {ExcelUtils.file_path}")
     #     else:
     #         print(f"Using existing Excel copy: {ExcelUtils.file_path}")
-    file_path =  "C:\\Users\Dell\\Desktop\\sqrqlas\\Sqarqla_Retail_data2.xlsx"
+    # file_path =  "C:\\Users\Dell\\Desktop\\sqrqlas\\Sqarqla_Retail_data2.xlsx"
+    file_path =   "C:\\Users\\Dell\\Desktop\\DATA\\Sqarqla_Retail_data2.xlsx"
+    SCREENSHOT_PATH = "C:\\Retail_Automation\\Sparqla\\Reports\\screenshots"
     
     # Start Excel
     def ExcelClose(file_path):
@@ -250,17 +252,20 @@ class ExcelUtils:
         workbook = load_workbook(file_path)
         sheet = workbook[sheet_name]
 
-        # Find the column number of "Status"
+        # Find the column number of "field_validation_status" or "Remark"
         status_col_num = None
         for col in range(1, sheet.max_column + 1):
             cell_value = sheet.cell(row=1, column=col).value
-            if cell_value and cell_value.strip().lower() == "field_validation_status":
+            if not cell_value:
+                continue
+                
+            header = str(cell_value).strip().lower()
+            if header == "field_validation_status" or header == "remark":
                 status_col_num = col
-                print(f"Status column number is: {status_col_num}")
-                print(type(status_col_num))  # <class 'int'>
+                print(f"Status column number is: {status_col_num} (Header: {cell_value})")
                 return status_col_num
         
-        
+        return None # Fallback
     def update_Lot_id(file_path, Lot_id, row_count, Pcs_count,workbook):
         sheet = workbook["Tag"]
         Pcs_count = int(Pcs_count)  # ensure it's an integer

@@ -11,6 +11,7 @@ import unittest
 from Utils.Excel import ExcelUtils
 from openpyxl import load_workbook
 import sys
+import os
 
 # Enable UTF-8 safe console output
 sys.stdout.reconfigure(encoding='utf-8')
@@ -152,7 +153,7 @@ class Category(unittest.TestCase):
             wait.until(EC.element_to_be_clickable((By.ID,"category_desc"))).clear()
             wait.until(EC.element_to_be_clickable((By.ID,"category_desc"))).send_keys(row_data["CatDesc"])
         wait.until(EC.element_to_be_clickable((By.ID,"add_newcategory"))).click()
-        driver.save_screenshot("error_add_category.png")
+        driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, "error_add_category.png"))
         try:
             message=wait.until(EC.presence_of_element_located((By.XPATH,"//*[@id=\"chit_alert\"]/div"))).text
             message = message.replace("×", "").replace("\n", " ").strip()
@@ -181,7 +182,7 @@ class Category(unittest.TestCase):
             wait.until(EC.element_to_be_clickable((By.ID,"ed_category_name"))).send_keys(row_data["CategoryEditName"])
             wait.until(EC.element_to_be_clickable((By.ID,"ed_category_name"))).click()
             wait.until(EC.element_to_be_clickable((By.ID,"update_category"))).click()
-            driver.save_screenshot("error_add_category.png")
+            driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, "error_add_category.png"))
             try:
                 sleep(3)
                 CategoryEdit = wait.until(EC.element_to_be_clickable((By.XPATH,"/html/body/div[1]/div[1]/section[2]/div/div/div/div[2]/div[1]"))).text
@@ -216,7 +217,7 @@ class Category(unittest.TestCase):
             wait.until(EC.element_to_be_clickable((By.XPATH,"//input[@type='search']"))).send_keys(category)
             wait.until(EC.element_to_be_clickable((By.XPATH,"//a[@class='btn btn-danger btn-del']/i"))).click()
             wait.until(EC.element_to_be_clickable((By.XPATH,"//a[@class='btn btn-danger btn-confirm']"))).click()
-            driver.save_screenshot("error_add_category.png")
+            driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, "error_add_category.png"))
             try:
                 DeleteSuccessMsg = wait.until(EC.element_to_be_clickable((By.XPATH,"/html/body/div[1]/div[1]/section[2]/div/div/div/div[2]/div[1]"))).text                    
                 DeleteSuccessMsg = DeleteSuccessMsg.replace("×", "").replace("\n", " ").strip()

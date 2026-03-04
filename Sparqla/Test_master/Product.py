@@ -7,6 +7,7 @@ from selenium.common.exceptions import NoAlertPresentException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from time import sleep
+import os
 import unittest
 from Utils.Excel import ExcelUtils
 from openpyxl.drawing.image import Image
@@ -220,7 +221,7 @@ class Product(unittest.TestCase):
         calculation.click()
         calculation.send_keys(row_data["calculation"],Keys.ENTER)
         wait.until(EC.element_to_be_clickable((By.XPATH,"/html/body/div/div[1]/section[2]/form/div/div[4]/div/div/div/button[1]"))).click()
-        driver.save_screenshot('added.png.png')
+        driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, 'added.png.png'))
         # screenshot_path = "D:/Retail_Testing/added.png.png"
         # driver.save_screenshot(screenshot_path)
         # function_name = "Product"
@@ -258,7 +259,7 @@ class Product(unittest.TestCase):
             Edit_Product.clear()
             Edit_Product.send_keys(row_data['editProduct'])
             wait.until(EC.element_to_be_clickable((By.XPATH,"/html/body/div/div[1]/section[2]/form/div/div[4]/div/div/div/button[1]"))).click()
-            driver.save_screenshot('edit.png.png')
+            driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, 'edit.png.png'))
             try:
                 editsucess = wait.until(EC.element_to_be_clickable((By.XPATH,"/html/body/div[1]/div[1]/section[2]/div/div/div/div[2]/div[2]/div/div"))).text
                 editsucess = editsucess.replace("×", "").replace("\n", " ").strip()
@@ -291,7 +292,7 @@ class Product(unittest.TestCase):
             wait.until(EC.element_to_be_clickable((By.XPATH,"//*[@id=\"product_list_filter\"]/label/input"))).send_keys(delete)
             wait.until(EC.element_to_be_clickable((By.XPATH,"//*[@id=\"product_list\"]/tbody/tr/td[12]/a[2]"))).click()
             wait.until(EC.element_to_be_clickable((By.XPATH,"//*[@id=\"confirm-delete\"]/div/div/div[3]/a"))).click()
-            driver.save_screenshot('delete.png.png')
+            driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, 'delete.png.png'))
             try:
                 deleted = wait.until(EC.element_to_be_clickable((By.XPATH,"/html/body/div[1]/div[1]/section[2]/div/div/div/div[2]/div[2]/div/div"))).text
                 deleted = deleted.replace("×", "").replace("\n", " ").strip()

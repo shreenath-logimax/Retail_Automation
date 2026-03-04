@@ -18,6 +18,15 @@ class Boardrate(unittest.TestCase):
             driver = self.driver
             wait = self.wait
             Board_Rate=[]
+            
+            # Check for Expense ledger balance toaster
+            try:
+                toaster_xpath = "//div[@id='toaster']//span[@class='message' and contains(text(), 'Expense ledger balance is below the minimum balance')]"
+                if driver.find_elements(By.XPATH, toaster_xpath):
+                    driver.find_element(By.XPATH, "//div[@id='toaster']//button[@class='close']").click()
+                    sleep(1)
+            except Exception:
+                pass
             Function_Call.click(self,"//span[@class='header_rate']/b[contains(text(),'INR')]")
             rate_text1 = wait.until(EC.presence_of_element_located((By.XPATH, "//li[@class='user-body rate_block_body']//tr[th[contains(text(),'Gold 22KT 1gm')]]/td"))).text
             rate_text2 = wait.until(EC.presence_of_element_located((By.XPATH, "//li[@class='user-body rate_block_body']//tr[th[contains(text(),'Gold 18KT 1gm')]]/td"))).text

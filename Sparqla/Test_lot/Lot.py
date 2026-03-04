@@ -226,7 +226,7 @@
 #                 message = message.replace("×", "").strip()
 #                 print(message)                    
 #                 expected_message = "Add Lot! Lot added successfully"
-#                 driver.save_screenshot('Lot.png.png')
+#                 driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, 'Lot.png.png'))
 #                 if message == expected_message:
 #                         Test_Status="Pass"
 #                         Actual_Status= message
@@ -234,7 +234,7 @@
 #                     Test_Status="Fail"
 #                     Actual_Status= message
 #             except:
-#                 driver.save_screenshot('Loterror.png.png')
+#                 driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, 'Loterror.png.png'))
 #                 Test_Status="Fail"
 #                 Actual_Status="Lot Not Add Successfully"           
 #             wait.until(EC.element_to_be_clickable((By.ID,"ltInward-dt-btn"))).click()
@@ -349,6 +349,7 @@ from Test_lot.othermetal import Othermetal
 from Test_lot.Stone import Stone
 import win32com.client as win32
 from time import sleep
+import os
 import unittest
 from Utils.Excel import ExcelUtils
 from Utils.Function import Function_Call
@@ -572,7 +573,7 @@ class Lot(unittest.TestCase):
                 message = message.replace("×", "").strip()
                 print(message)                    
                 expected_message = "Add Lot! Lot added successfully"
-                driver.save_screenshot('Lot.png.png')
+                driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, 'Lot.png.png'))
                 if message == expected_message:
                         Test_Status="Pass"
                         Actual_Status= message
@@ -580,7 +581,7 @@ class Lot(unittest.TestCase):
                     Test_Status="Fail"
                     Actual_Status= message
             except:
-                driver.save_screenshot('Loterror.png.png')
+                driver.save_screenshot(os.path.join(ExcelUtils.SCREENSHOT_PATH, 'Loterror.png.png'))
                 Test_Status="Fail"
                 Actual_Status="Lot Not Add Successfully"           
             wait.until(EC.element_to_be_clickable((By.ID,"ltInward-dt-btn"))).click()
