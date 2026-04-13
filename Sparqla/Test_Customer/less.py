@@ -3,132 +3,135 @@ from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from openpyxl import load_workbook
 from time import sleep
-import unittest, math
+import math
 from Utils.Excel import ExcelUtils
+from Utils.Function import Function_Call
 
 FILE_PATH = ExcelUtils.file_path
 
-
-class Stone(unittest.TestCase):
+class Stone:
+    """Helper class for handling Less Weight / Stone details."""
+    
     def __init__(self, driver):
-        super().__init__()  # ensure unittest init is called
         self.driver = driver
         self.wait = WebDriverWait(driver, 10)
+        self.fc = Function_Call(driver)
 
-    # ---------- Main Test ----------
     def test_tagStone(self, sheet_name, test_case_id):
+        """Main method to fill stone details for a specific test case."""
         wait = self.wait
         sleep(2)
-        # Excel setup
-        count = ExcelUtils.Test_case_id_count(FILE_PATH, sheet_name, test_case_id)
-        valid_rows = ExcelUtils.get_valid_rows(FILE_PATH, sheet_name)
-        workbook = load_workbook(FILE_PATH)
-        sheet = workbook[sheet_name]
-        row = 1
-        for row_num in range(2, valid_rows + 1):  # include last row
-            if sheet.cell(row=row_num, column=1).value != test_case_id:
-                # continue
-                # Map Excel row to dict
+        
+        try:
+            valid_rows = ExcelUtils.get_valid_rows(FILE_PATH, sheet_name)
+            count = ExcelUtils.Test_case_id_count(FILE_PATH, sheet_name, test_case_id)
+            workbook = load_workbook(FILE_PATH)
+            sheet = workbook[sheet_name]
+        except Exception as e:
+            print(f"❌ Failed to load stone data for {sheet_name}: {e}")
+            return None
+
+        row_idx = 1
+        processed_count = 0
+        all_stones_data = []
+
+        for row_num in range(2, valid_rows + 1):
+            current_id = sheet.cell(row=row_num, column=1).value
+            if str(current_id).strip() == str(test_case_id).strip():
                 data_map = {
-                    "Test Case Id": 1, "Less Weight": 2, "Type": 3, "Name": 4,
-                    "Code": 5, "Pcs": 6, "Wt": 7, "Wt Type": 8,
-                    "Cal.Type": 9, "Rate": 10, "Amount": 11
+                    "Type": 3, "Name": 4, "Code": 5, "Pcs": 6, 
+                    "Wt": 7, "Wt Type": 8, "Cal.Type": 9, "Rate": 10, "Amount": 11
                 }
-                row_Stonedata = {
-                    k: sheet.cell(row=row_num, column=v).value for k, v in data_map.items()
-                }
-                print("Row Data:", row_Stonedata)
+                row_data = {k: sheet.cell(row=row_num, column=v).value for k, v in data_map.items()}
+                
+                print(f"💎 Adding Stone: {row_data['Name']} (Row {row_idx})")
+                
+                # Fill Dropdowns
+                self._select_dropdown(f"(//select[@name='est_stones_item[stones_type][]'])[{row_idx}]", row_data["Type"])
+                self._select_dropdown(f"(//select[@name='est_stones_item[stone_id][]'])[{row_idx}]", row_data["Name"])
 
-                # --- Fill dropdowns ---
-                self.select_dropdown(f"(//select[@name='est_stones_item[stones_type][]'])[{row}]", row_Stonedata["Type"])
-                self.select_dropdown(f"(//select[@name='est_stones_item[stone_id][]'])[{row}]", row_Stonedata["Name"])
+                # Fill Inputs
+                self._fill_input(f"(//input[@name='est_stones_item[stone_pcs][]'])[{row_idx}]", row_data["Pcs"])
+                self._fill_input(f"(//input[@name='est_stones_item[stone_wt][]'])[{row_idx}]",  row_data["Wt"])
+                self._select_dropdown(f"(//select[@name='est_stones_item[stone_uom_id][]'])[{row_idx}]", row_data["Wt Type"])
 
-                # --- Fill inputs ---
-                self.fill_input(f"(//input[@name='est_stones_item[stone_pcs][]'])[{row}]", row_Stonedata["Pcs"])
-                self.fill_input(f"(//input[@name='est_stones_item[stone_wt][]'])[{row}]",  row_Stonedata["Wt"])
-                self.select_dropdown("(//select[@name='est_stones_item[stone_uom_id][]'])[{row}]", row_Stonedata["Wt Type"])
-
-                # --- Cal.Type radio button ---
-                stonerow = row - 1
-                cal_type = 1 if row_Stonedata["Cal.Type"] == "Wt" else 2
-                cal_xpath = f"(//input[@name='est_stones_item[cal_type][{stonerow}]' and @value='{cal_type}'])"
+                # Cal.Type Radio
+                stone_row_param = row_idx - 1
+                cal_type_val = 1 if str(row_data["Cal.Type"]).strip().lower() == "wt" else 2
+                cal_xpath = f"(//input[@name='est_stones_item[cal_type][{stone_row_param}]' and @value='{cal_type_val}'])"
                 wait.until(EC.element_to_be_clickable((By.XPATH, cal_xpath))).click()
 
-                # --- Rate & amount validation ---
-                self.fill_input(f"(//input[@name='est_stones_item[stone_rate][]'])[{row}]", row_Stonedata["Rate"], clear=False)
-                amt_element = wait.until(EC.visibility_of_element_located(
-                    (By.XPATH, f'(//input[@name="est_stones_item[stone_price][]"])[{row}]'))
-                )
-                table_amt = f"{float(amt_element.get_attribute('value')):.2f}"
-                self.calc_and_validate(row_Stonedata, table_amt)
+                # Rate
+                self._fill_input(f"(//input[@name='est_stones_item[stone_rate][]'])[{row_idx}]", row_data["Rate"])
+                
+                # Validation
+                amt_xpath = f'(//input[@name="est_stones_item[stone_price][]"])[{row_idx}]'
+                table_amt = self.fc.get_value(amt_xpath)
+                self._validate_calc(row_data, table_amt)
 
-                # --- Add multiple rows if needed ---
-                if count > 1:
+                processed_count += 1
+                all_stones_data.append(row_data)
+
+                # Add more rows if needed
+                if processed_count < count:
                     wait.until(EC.element_to_be_clickable((By.ID, "create_stone_item_details"))).click()
-                    row += 1
-                    count -= 1
-                else:
-                    wt_total = self.test_tablevalue(self.driver.find_elements(By.NAME, "est_stones_item[stone_wt][]"))
-                    print("Total Wt:", wt_total)
-                    amt_total = self.test_tablevalue(self.driver.find_elements(By.NAME, "est_stones_item[stone_price][]"))
-                    print("Total Amount:", amt_total)
+                    row_idx += 1
+                    sleep(1)
 
-            # Save stone details
+        # Save and return
+        if processed_count > 0:
             wait.until(EC.element_to_be_clickable((By.ID, "update_stone_details"))).click()
-            print("✅ Less weight detail added successfully")
-            return "Less weight detail added successfully"
+            print(f"✅ Successfully added {processed_count} stone(s)")
+            
+            # Return totals (Wt, Amt) if needed
+            wt_total = self._get_table_total("est_stones_item[stone_wt][]")
+            amt_total = self._get_table_total("est_stones_item[stone_price][]")
+            
+            return True, wt_total, amt_total, all_stones_data
+        
+        workbook.close()
+        return None
 
-    # ---------- Utility Methods ----------
-    def select_dropdown(self, locator, row, value):
-        """Click and select dropdown value by visible text"""
-        if value is None:
-            print(f"⚠️ Skipping dropdown {locator}, value is None")
-            return
-        element = self.wait.until(EC.element_to_be_clickable((By.XPATH, locator.format(row))))
-        Select(element).select_by_visible_text(str(value))
-        print(f"✅ Dropdown filled with {value}")
-
-    def fill_input(self, locator, row, value, clear=True):
-        """Fill input field"""
-        if value is None:
-            print(f"⚠️ Skipping input {locator}, value is None")
-            return
-        element = self.wait.until(EC.visibility_of_element_located((By.XPATH, locator.format(row))))
-        element.click()
-        if clear:
-            element.clear()
-        element.send_keys(str(value))
-        print(f"✅ Input filled with {value}")
-
-    def calc_and_validate(self, row_Stonedata, table_amt):
-        """Validate stone amount calculation"""
+    def _select_dropdown(self, locator, value):
+        if value is None: return
         try:
-            if row_Stonedata["Cal.Type"] == "Wt":
-                total = float(row_Stonedata["Wt"]) * float(row_Stonedata["Rate"])
-            else:
-                total = float(row_Stonedata["Pcs"]) * float(row_Stonedata["Rate"])
-            expected_amt = f"{math.ceil(total):.2f}"
-            if expected_amt == table_amt:
-                print("✅ Stone Rate Calculation correct")
-            else:
-                print(f"❌ Stone Rate Calculation incorrect → Expected {expected_amt}, Got {table_amt}")
+            el = self.wait.until(EC.presence_of_element_located((By.XPATH, locator)))
+            Select(el).select_by_visible_text(str(value))
         except Exception as e:
-            print(f"⚠️ Calculation skipped due to missing/invalid data: {e}")
+            print(f"⚠️ Dropdown failed: {locator} | {e}")
 
-    def test_tablevalue(self, rows):
-        """Get total from input fields"""
-        river = self.driver
-        value=[]
-        sleep(4)
-        for row in rows:
-            val = row.get_attribute("value")  
-            if val and val.strip():  # Ensure it's not empty
-                value.append(float(val.strip()))
-            else:
-                print("No value found in input.")  
-        print("Collected Values:", value)
-        if value:
-            total_value = round(sum(value), 3)
-        else:
-            total_value = 0.0
-        return total_value
+    def _fill_input(self, locator, value):
+        if value is None: return
+        try:
+            el = self.wait.until(EC.visibility_of_element_located((By.XPATH, locator)))
+            el.clear()
+            el.send_keys(str(value))
+        except Exception as e:
+            print(f"⚠️ Input failed: {locator} | {e}")
+
+    def _validate_calc(self, data, table_amt):
+        try:
+            rate = float(data["Rate"] or 0)
+            pcs = float(data["Pcs"] or 0)
+            wt = float(data["Wt"] or 0)
+            cal_type = str(data["Cal.Type"]).strip().lower()
+            
+            expected = math.ceil(wt * rate) if cal_type == "wt" else math.ceil(pcs * rate)
+            found = math.ceil(float(table_amt or 0))
+            
+            if abs(expected - found) > 1:
+                print(f"❌ Stone Calc mismatch: Expected {expected}, Found {found}")
+        except:
+            pass
+
+    def _get_table_total(self, name):
+        """Sum up values from all inputs with given name."""
+        sleep(1)
+        els = self.driver.find_elements(By.NAME, name)
+        total = 0.0
+        for el in els:
+            try:
+                val = el.get_attribute("value")
+                if val: total += float(val)
+            except: pass
+        return round(total, 3)

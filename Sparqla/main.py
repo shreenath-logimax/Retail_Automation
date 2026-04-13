@@ -23,7 +23,8 @@ from Test_lot.Lot import Lot
 from Test_lot.LotGenerate import LotGenerate
 from Test_Tag.Tag import Tag
 from Test_vendor.Vendor import VendorRegistration
-from Test_Customer.Customer import CustomerOrderTR
+# from Test_Customer.Customer import CustomerOrderTR
+from Test_Customer.CustomerOrder import CustomerOrder   
 from Test_EST.EST import ESTIMATION
 from Test_Purchase.PurchaseReturn import PurchaseReturn
 from Test_Purchase.SmithSupplierPayment import SmithSupplierPayment
@@ -179,8 +180,8 @@ class main():
                             Data = Vendor_automation.test_vendor_registration()
                         case "Customer":
                             print("yes")
-                            Vendor_automation = CustomerOrderTR(driver)
-                            Data = Vendor_automation.test_customer_order_t_r()  
+                            Vendor_automation = CustomerOrder(driver)
+                            Data = Vendor_automation.test_customer_order()  
                         case "EST":
                             print("yes")
                             EST = ESTIMATION(driver)
