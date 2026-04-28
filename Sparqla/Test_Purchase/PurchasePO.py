@@ -74,12 +74,12 @@ class PurchasePO(unittest.TestCase):
             data_map = {
                 "TestCaseId": 1, "TestStatus": 2, "ActualStatus": 3,
                 "OrderFor": 4, "Karigar": 5, "DueDate": 6, "CustomerOrderNo":7,
-                "RateType": 8, "Product": 9, "Design": 10,
-                "SubDesign": 11, "WeightRange": 12, "OrderWeight": 13,
-                "Size": 14, "LessWeight": 15, "NetWeight": 16,
-                "StoneAmount": 17, "MCValue": 18, "Wastage%": 19,
-                "Description": 20, "Pieces": 21, "ExpectedPONo": 22,
-                "ExpectedStatus": 23, "CancelReason": 24, "Remark": 25, "Rate": 26,
+                "RateType": 8, "Rate": 9, "Product": 10, "Design": 11,
+                "SubDesign": 12, "WeightRange": 13, "OrderWeight": 14,
+                "Size": 15, "LessWeight": 16, "NetWeight": 17,
+                "StoneAmount": 18, "MCValue": 19, "Wastage%": 20,
+                "Description": 21, "Pieces": 22, "ExpectedPONo": 23,
+                "ExpectedStatus": 24, "CancelReason": 25, "Remark": 26, 
                 "Branch": 27, "OrderNo": 28
             }
             

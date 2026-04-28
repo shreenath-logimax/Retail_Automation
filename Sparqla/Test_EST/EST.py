@@ -22,6 +22,7 @@ from pathlib import Path
 import base64, re, time
 
 FILE_PATH = ExcelUtils.file_path
+BASE_URL=ExcelUtils.BASE_URL
 class ESTIMATION(unittest.TestCase):
     def __init__(self,driver):
         self.driver =driver   
@@ -78,6 +79,14 @@ class ESTIMATION(unittest.TestCase):
             row_data = {key: sheet.cell(row=row_num, column=col).value 
                             for key, col in data.items()}
             print(row_data)
+            if str(row_data.get("TestStatus", "")).strip().lower() != "run":
+                print(f"⏭️ Skipping row {row_num} (Status={row_data.get('TestStatus')})")
+                continue
+
+
+            print(f"\n{'='*80}")
+            print(f"🧪 Running Test Case: {row_data['Test Case Id']}")
+            print(f"{'='*80}")
             # Call you 'create' method
             Create_data = self.create(row_data, row_num, Sheet_name,Board_Rate)
             print(Create_data)
@@ -93,7 +102,9 @@ class ESTIMATION(unittest.TestCase):
         Mandatory_field=[]
         
         if row_num != 2:
-            sleep(1), Function_Call.click(self,'//a[@id="add_estimation"]')
+            sleep(2)
+            driver.get(BASE_URL + "index.php/admin_ret_estimation/estimation/add")
+            
         #Branch
         if row_data["Branch"] is not None:
            Function_Call.dropdown_select(self,'//span[@id="select2-branch_select-container"]',row_data['Branch'],'//span[@class="select2-search select2-search--dropdown"]/input')

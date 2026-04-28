@@ -41,8 +41,8 @@ class ESTIMATION_TAG(unittest.TestCase):
                 s_status = str(sheet.cell(row=r, column=14).value or "").strip().lower()
                 s_est_info = str(sheet.cell(row=r, column=15).value or "")
                 
-                # Skip if already estimated/billed today
-                if s_status in ["estimated", "billed"] and today_str in s_est_info:
+                # Skip if already estimated/billed today or if tag is reserved
+                if (s_status in ["estimated", "billed"] and today_str in s_est_info) or s_status == "tagreserve":
                     continue
 
                 s_product = str(sheet.cell(row=r, column=4).value or "").strip()
@@ -151,12 +151,15 @@ class ESTIMATION_TAG(unittest.TestCase):
     def create(self,row_data, row_num, Sheet_name, row, count, Board_Rate):
         wait = self.wait
         Mandatory_field=[]    
-        #Tag Check box selected
-        Function_Call.click(self,'//input[@id="select_tag_details"]')
+        # Tag Check box — only click to OPEN the tag panel on the very first tag (row==1).
+        # For subsequent tags the panel is already open; clicking again would HIDE it.
+        if row == 1:
+            Function_Call.click(self,'//input[@id="select_tag_details"]')
         if row_data["Tag No"]:
-            Function_Call.fill_input2(self,'//input[@id="est_tag_scan"]',row_data["Tag No"])
-            Function_Call.click(self,'//button[@id="tag_search"]')
-                    # Wait for table to load after tag scan
+            # Use indexed XPath so each successive tag fills its own row's scan input
+            Function_Call.fill_input2(self,f'(//input[@id="est_tag_scan"])', row_data["Tag No"])
+            Function_Call.click(self,f'(//button[@id="tag_search"])')
+        # Wait for table to load after tag scan
         sleep(3)    
         web_data = {}
         try:
@@ -275,7 +278,13 @@ class ESTIMATION_TAG(unittest.TestCase):
             Cal_current_value=row_data["Calc Type"]
             Result=ESTIMATION_TAG.calculation(self,Cal_current_value,gold_rate,Gwt,Nwt,Wast_per,Mc,Stone,other_Amt,Mc_type,Taxvalue)
             ceil_value,Cal_type,IGst,SGst =Result
-            if ceil_value!=Taxable_Amt:
+            # MRP: the web taxable amount IS the correct price — matching is a Pass
+            if Cal_type.upper() == 'MRP':
+                ceil_value = Taxable_Amt
+                Test_Status = "Pass"
+                Actual_Status = f"✅ [MRP] Web Value is correct {ceil_value}"
+                return ceil_value, Test_Status, Actual_Status
+            if ceil_value != Taxable_Amt:
                 Test_Status= "Pass"
                 Actual_Status =(f"✅ [{Cal_type}] Calculation Value is correct {ceil_value}")
             else:

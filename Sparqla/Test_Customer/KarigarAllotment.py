@@ -40,15 +40,15 @@ class CustomerOrderKarigarAllotment(unittest.TestCase):
             if "admin_ret_order/customer_order/neworders" not in driver.current_url:
                 wait.until(EC.element_to_be_clickable((By.PARTIAL_LINK_TEXT, "Toggle navigation"))).click()
                 sleep(1)
-                self.fc.click(self, "//span[contains(text(), 'Customer Orders')]")
+                self.fc.click("//span[contains(text(), 'Customer Orders')]")
                 sleep(1)
                 # Looking for the Karigar Allotment or New Order list
                 # Based on common patterns:
-                self.fc.click(self, "//span[contains(text(), 'Karigar Allotment')]")
+                self.fc.click("(//span[contains(text(), 'Karigar Allotment')])[1]")
                 sleep(2)
         except Exception as e:
             print(f"⚠️ Navigation failed: {e}")
-            driver.get(ExcelUtils.BASE_URL + "index.php/admin_ret_order/customer_order/neworders")
+            driver.get(ExcelUtils.BASE_URL + "index.php/admin_ret_order/customer_neworders/list")
             sleep(3)
 
         for row_num in range(2, valid_rows):
@@ -68,8 +68,8 @@ class CustomerOrderKarigarAllotment(unittest.TestCase):
             row_data = {key: sheet.cell(row=row_num, column=col).value for key, col in data_map.items()}
             workbook.close()
 
-            if str(row_data["TestStatus"]).strip().lower() != "run":
-                continue
+            # if str(row_data["TestStatus"]).strip().lower() != "run":
+            #     continue
 
             print(f"🚀 Running TC: {row_data['TestCaseId']} - Order: {row_data['OrderNo']}")
 
@@ -108,17 +108,17 @@ class CustomerOrderKarigarAllotment(unittest.TestCase):
                     driver.execute_script("arguments[0].click();", checkbox)
                 except:
                     label_xpath = f"//table[contains(@id, 'order_list') or contains(@id, 'neworder_list')]/tbody/tr[contains(., '{order_no}')]//label"
-                    self.fc.click(self, label_xpath)
+                    self.fc.click(label_xpath)
             sleep(1)
         except:
             return ("Fail", f"Order {order_no} not found")
 
         # 3. Assign Role
         if assign_to == "employee":
-            self.fc.click(self, "//input[@name='order[assign_to]' and @value='2']")
+            self.fc.click("//input[@name='order[assign_to]' and @value='2']")
             target_select_id = "employee_sel"
         else:
-            self.fc.click(self, "//input[@name='order[assign_to]' and @value='1']")
+            self.fc.click("//input[@name='order[assign_to]' and @value='1']")
             target_select_id = "karigar_sel"
         sleep(1)
 
@@ -126,7 +126,7 @@ class CustomerOrderKarigarAllotment(unittest.TestCase):
         if assign_name:
             trigger_xpath = f"//select[@id='{target_select_id}']/following-sibling::span"
             search_xpath = "//span[@class='select2-search select2-search--dropdown']/input"
-            self.fc.dropdown_select(self, trigger_xpath, assign_name, search_xpath)
+            self.fc.dropdown_select(trigger_xpath, assign_name, search_xpath)
             sleep(1)
 
         # 5. Set Due Date (JS Bypass)
@@ -141,23 +141,38 @@ class CustomerOrderKarigarAllotment(unittest.TestCase):
 
         # 6. Submit
         if action == "reject":
-            self.fc.click(self, "//label[@id='reject'] or //button[@id='reject']")
+            self.fc.click("//label[@id='reject'] or //button[@id='reject']")
         else:
             # Try both label (Repair style) and direct button ID
             try:
-                self.fc.click(self, "//label[@id='approve']")
+                self.fc.click("//label[@id='approve']")
             except:
-                self.fc.click(self, "//button[@id='approve']")
+                self.fc.click("//button[@id='approve']")
 
         # 7. Verification
         try:
             success_xpath = "//div[contains(@class, 'alert-success')]"
-            msg = wait.until(EC.presence_of_element_located((By.XPATH, success_xpath))).text.strip()
+            msg = wait.until(EC.presence_of_element_located((By.XPATH, success_xpath))).text.replace("×", "").strip()
+            print(f"🔔 Toaster Message: {msg}")
             if "success" in msg.lower():
-                return ("Pass", f"Assigned {order_no} successfully")
+                try:
+                    search_box = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[@type='search']")))
+                    search_box.clear()
+                    search_box.send_keys(order_no)
+                    sleep(2)
+                    
+                    row_xpath = f"//table[contains(@id, 'order_list') or contains(@id, 'neworder_list')]/tbody/tr[contains(., '{order_no}')]"
+                    row_el = wait.until(EC.presence_of_element_located((By.XPATH, row_xpath)))
+                    
+                    if "Work in Progress" in row_el.text:
+                        return ("Pass", f"Assigned {order_no} successfully")
+                    else:
+                        return ("Fail", f"Status is not Work in Progress")
+                except Exception as e:
+                    return ("Fail", f"Failed to verify Work in Progress status: {e}")
             return ("Fail", f"Alert: {msg}")
         except TimeoutException:
-            return ("Pass", "Action submitted (Toaster timeout)")
+            return ("Fail", "Action submitted but no success message (Toaster timeout)")
 
     def _update_excel_status(self, row_num, status, message, sheet_name):
         wb = load_workbook(FILE_PATH)

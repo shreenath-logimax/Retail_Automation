@@ -86,7 +86,7 @@ class ESTIMATION_Oldmetal(unittest.TestCase):
             sleep(4)
             Function_Call.click2(self,'//input[@id="select_oldmatel_details"]')
            
-        # Section
+        # Metals
         sleep(3)
         if row_data["Metals"]:
             Function_Call.dropdown_select(
@@ -104,15 +104,15 @@ class ESTIMATION_Oldmetal(unittest.TestCase):
             msg = f"'{None}' → Metal Type field is mandatory ⚠️"
             Mandatory_field.append("Metal Type"); print(msg); Function_Call.Remark(self,row_num, msg,Sheet_name)
                 
-        # Design 
-        if row_data["Category"] is not None:
-            Function_Call.dropdown_select(
-                self,f"(//span[starts-with(@id,'select2-est_oldmatel') and contains(@id,'[id_old_metal_category]')])[{row}]", 
-                row_data["Category"],
-                '//span[@class="select2-search select2-search--dropdown"]/input')
-        else:
-            msg = f"'{None}' → Category field is mandatory ⚠️"
-            Mandatory_field.append("Category"); print(msg); Function_Call.Remark(self,row_num, msg,Sheet_name)
+        # Category 
+        # if row_data["Category"] is not None:
+        #     Function_Call.dropdown_select(
+        #         self,f"(//span[starts-with(@id,'select2-est_oldmatel') and contains(@id,'[id_old_metal_category]')])[{row}]", 
+        #         row_data["Category"],
+        #         '//span[@class="select2-search select2-search--dropdown"]/input')
+        # else:
+        #     msg = f"'{None}' → Category field is mandatory ⚠️"
+        #     Mandatory_field.append("Category"); print(msg); Function_Call.Remark(self,row_num, msg,Sheet_name)
         
         #Product 
         if row_data["Product"] is not None:
@@ -151,8 +151,6 @@ class ESTIMATION_Oldmetal(unittest.TestCase):
             row_num=row_num,
             Sheet_name=Sheet_name
             )
-            Error_field_val.extend(errors)
-            print(Error_field_val)
         else:
             msg = f"'{None}' → Pcs field is mandatory ⚠️"
             Mandatory_field.append("Pcs"); print(msg); Function_Call.Remark(self,row_num, msg,Sheet_name)
@@ -169,8 +167,6 @@ class ESTIMATION_Oldmetal(unittest.TestCase):
             row_num=row_num,
             Sheet_name=Sheet_name
             )
-            Error_field_val.extend(errors)
-            print(Error_field_val)
         else:
             msg = f"'{None}' → G_Wt field is mandatory ⚠️"
             Mandatory_field.append("G_Wt"); print(msg); Function_Call.Remark(self,row_num, msg,Sheet_name)
@@ -188,8 +184,6 @@ class ESTIMATION_Oldmetal(unittest.TestCase):
             Sheet_name=Sheet_name,
             extra_keys=Keys.TAB
             )
-            Error_field_val.extend(errors)
-            print(Error_field_val)
         else:
             msg = f"'{None}' → Dust_Wt field is mandatory ⚠️"
             Mandatory_field.append("Dust_Wt"); print(msg); Function_Call.Remark(self,row_num, msg,Sheet_name)
@@ -206,8 +200,6 @@ class ESTIMATION_Oldmetal(unittest.TestCase):
             range_check = lambda v: 0 <= float(v) <= 99,
             row_num=row_num,
             Sheet_name=Sheet_name)
-            Error_field_val.extend(errors)
-            print(Error_field_val)
         else:
             msg = f"'{None}' → Wastage% Vlue field is mandatory ⚠️"
             Mandatory_field.append("Wastage%"); print(msg); Function_Call.Remark(self,row_num, msg,Sheet_name)
@@ -225,8 +217,6 @@ class ESTIMATION_Oldmetal(unittest.TestCase):
             row_num=row_num,
             Sheet_name=Sheet_name
             )
-            Error_field_val.extend(errors)
-            print(Error_field_val)
         else:
             msg = f"'{None}' → Rate field is mandatory ⚠️"
             Mandatory_field.append("Rate"); print(msg); Function_Call.Remark(self,row_num, msg,Sheet_name)
@@ -243,8 +233,6 @@ class ESTIMATION_Oldmetal(unittest.TestCase):
             row_num=row_num,
             Sheet_name=Sheet_name
             )
-            Error_field_val.extend(errors)
-            print(Error_field_val)
             
         if row_data["Stone"] =="Yes":
             Function_Call.click(self,f'(//table[@id="estimation_old_matel_details"]//td[15]/a)[{row}]')

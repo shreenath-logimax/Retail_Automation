@@ -37,9 +37,9 @@ class OrderLink(unittest.TestCase):
             if "admin_ret_tagging/order_link" not in driver.current_url:
                 wait.until(EC.element_to_be_clickable((By.PARTIAL_LINK_TEXT, "Toggle navigation"))).click()
                 sleep(1)
-                self.fc.click(self, "//span[contains(text(), 'Inventory')]")
+                self.fc.click("//span[contains(text(), 'Inventory')]")
                 sleep(1)
-                self.fc.click(self, "(//span[contains(normalize-space(), 'Order Link')])") 
+                self.fc.click("(//span[contains(normalize-space(), 'Order Link')])") 
                 sleep(2)
         except Exception as e:
             print(f"⚠️ Navigation failed: {e}")
@@ -53,6 +53,7 @@ class OrderLink(unittest.TestCase):
         try:
             valid_rows = ExcelUtils.get_valid_rows(FILE_PATH, sheet_name)
             print(f"✅ Found {valid_rows - 2} test cases in '{sheet_name}' sheet\n")
+            self._resolve_tags(sheet_name, valid_rows)
         except Exception as e:
             print(f"❌ Failed to read valid rows from '{sheet_name}': {e}")
             return []
@@ -64,8 +65,9 @@ class OrderLink(unittest.TestCase):
             data_map = {
                 "TestCaseId": 1, "TestStatus": 2, "ActualStatus":3,
                 "Branch":     4, "FinYear":    5, "OrderNo":    6, 
-                "TagNo":      7, "OldTagNo":   8, "ExpectedMsg": 9, 
-                "Remarks":    10
+                "TagNo":      7, "OldTagNo":   8, "Product":9,
+                "Design":     10,"SubDesign":  11,"ExpectedMsg": 12, 
+                "Remarks":    13
             }
 
             row_data = {
@@ -82,6 +84,15 @@ class OrderLink(unittest.TestCase):
                 result = self._run_order_link(row_data)
                 print(f"🏁 Result: {result[0]} — {result[1]}")
                 self._update_excel_status(row_num, result[0], result[1], sheet_name)
+                
+                if result[0] == "Pass":
+                    tag_no = str(row_data.get("TagNo", "")).strip()
+                    order_no = str(row_data.get("OrderNo", "")).strip()
+                    if tag_no and tag_no != "None":
+                        self._update_detail_sheet_tag_status(tag_no, order_no)
+                        
+                    customer_mobile = result[2] if len(result) > 2 else ""
+                    self._update_billing_sheet(row_data, customer_mobile)
             except Exception as e:
                 print(f"❌ TC {row_data.get('TestCaseId')} exception: {e}")
                 self._take_screenshot(f"EX_{row_data.get('TestCaseId')}")
@@ -93,9 +104,9 @@ class OrderLink(unittest.TestCase):
         current_field = "Initialization"
         
         try:
-            # Refresh if we're doing a second test case to get clean state
-            # driver.refresh()
-            # sleep(2)
+            # Ensure we start on the correct page for each test case
+            driver.get(BASE_URL + "index.php/admin_ret_tagging/tagging/tag_link")
+            sleep(2)
 
             # 1. Select Branch
             branch = str(row_data.get("Branch", "")).strip()
@@ -179,21 +190,83 @@ class OrderLink(unittest.TestCase):
 
             # 6. Verify Success
             current_field = "Success Message Banner"
-            expected_msg = str(row_data.get("ExpectedMsg", "")).strip()
+            expected_msg = 'Successfully'
             
             try:
                 banner = wait.until(EC.presence_of_element_located((By.XPATH, '//div[contains(@class, "alert-success")] | //div[@class="toast-message"]')))
-                actual_msg = banner.text.strip()
+                actual_msg = banner.text.strip().lower()
+                print(f"  -> {actual_msg}")
                 driver.execute_script("arguments[0].scrollIntoView(true);", banner)
                 self._take_screenshot(f"Success_{row_data.get('TestCaseId')}")
                 print(f"  -> Validated Banner: {actual_msg}")
 
-                if expected_msg and expected_msg.lower() not in actual_msg.lower():
-                    return ("Warning", f"Expected '{expected_msg}', got '{actual_msg}'")
-                return ("Pass", actual_msg)
+                msg_matches = expected_msg.lower() 
+                
+                # 7. Verify Status in Report
+                current_field = "Verify Order Status Report"
+                try:
+                    driver.get(BASE_URL + "index.php/admin_ret_reports/order_status/list")
+                    sleep(2)
+                    
+                    branch = str(row_data.get("Branch", "")).strip()
+                    if branch:
+                        try:
+                            self.fc.dropdown_select2(
+                                '//select[contains(@id, "branch") or contains(@name, "branch")]/following-sibling::span | //span[contains(@id, "branch")]',
+                                branch,
+                                '//span[@class="select2-search select2-search--dropdown"]/input'
+                            )
+                            sleep(1)
+                        except:
+                            pass # Branch might default correctly, continue
+                            
+                    self.fc.click('//button[contains(., "Date range picker")]')
+                    sleep(1)
+                    self.fc.click('//li[contains(text(), "Last 30 Days")]')
+                    sleep(1)
+                    
+                    self.fc.click('//button[@id="search" or text()="Search"]')
+                    sleep(2)
+                    
+                    order_no = str(row_data.get("OrderNo", "")).strip()
+                    search_box = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[@type='search']")))
+                    search_box.clear()
+                    search_box.send_keys(order_no)
+                    sleep(2)
+                    
+                    row_xpath = f"//table/tbody/tr[contains(., '{order_no}')]"
+                    row_el = wait.until(EC.presence_of_element_located((By.XPATH, row_xpath)))
+                    
+                    customer_mobile = ""
+                    try:
+                        headers = driver.find_elements(By.XPATH, "//table/thead/tr/th")
+                        for i, th in enumerate(headers, 1):
+                            if "MOBILE" in th.text.upper():
+                                customer_mobile = row_el.find_element(By.XPATH, f"./td[{i}]").text.strip()
+                                print(f"  -> Extracted Customer Mobile: {customer_mobile}")
+                                break
+                    except Exception as e:
+                        print(f"  -> Warning: Could not extract Customer Mobile ({e})")
+                        
+                    Web_status=  row_el.text.strip().lower()
+                    status_ready = "delivery ready"                     
+                    if msg_matches in actual_msg:
+                        if status_ready in Web_status:
+                            status=(f"  -> Order '{order_no}' Orderlink Done and status verified as 'Delivery Ready'.")
+                            return ("Pass", status, customer_mobile)
+                        else:
+                            status=(f"  -> Order '{order_no}' Orderlink Done but status not 'Delivery Ready'.")
+                            return ("Fail", status, customer_mobile)
+                    else:
+                        status=(f"  -> Order '{order_no}' Orderlink failed")
+                        return ("Fail", status, customer_mobile)
+                except Exception as e:
+                    status=(f"  -> Order '{order_no}' Orderlink failed")
+                    return ("Fail", status, "")
             except TimeoutException:
+                status=(f"  -> Order '{order_no}' Orderlink failed")
                 self._take_screenshot(f"NoBanner_{row_data.get('TestCaseId')}")
-                return ("Fail", "Success banner did not appear after save.")
+                return ("Fail", "Success banner did not appear after save.", "")
 
         except Exception as e:
             print(f"❌ Error at '{current_field}': {e}")
@@ -226,3 +299,156 @@ class OrderLink(unittest.TestCase):
             print(f"📸 Screen saved: {filename}")
         except Exception as e:
             print(f"⚠️ Screenshot Failed: {e}")
+
+    def _resolve_tags(self, sheet_name, valid_rows):
+        """Resolves tags from Tag_Detail or Purchase_TagDetail using Product, Design, SubDesign."""
+        self.used_tags_coords = getattr(self, 'used_tags_coords', [])
+        wb = load_workbook(FILE_PATH)
+        ol_sheet = wb[sheet_name]
+        
+        detail_sheets = {}
+        for ds in ["Tag_Detail", "Purchase_TagDetail"]:
+            if ds in wb.sheetnames:
+                detail_sheets[ds] = wb[ds]
+
+        today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+
+        updated = False
+        for r in range(2, valid_rows):
+            tag_no = str(ol_sheet.cell(row=r, column=7).value or "").strip()
+            
+            # If TagNo is empty, try to resolve
+            if not tag_no or tag_no == "None":
+                prod = str(ol_sheet.cell(row=r, column=9).value or "").strip().lower()
+                dsgn = str(ol_sheet.cell(row=r, column=10).value or "").strip().lower()
+                subd = str(ol_sheet.cell(row=r, column=11).value or "").strip().lower()
+                order_no = str(ol_sheet.cell(row=r, column=6).value or "").strip()
+                
+                if not prod or not dsgn or prod == "none":
+                    continue
+                    
+                matched = False
+                for d_name, d_sheet in detail_sheets.items():
+                    headers = {str(cell.value).strip().lower(): i for i, cell in enumerate(d_sheet[1], 1) if cell.value}
+                    prod_col = headers.get("product")
+                    dsgn_col = headers.get("design")
+                    sub_col = headers.get("sub design") or headers.get("subdesign")
+                    status_col = headers.get("status")
+                    tag_col = headers.get("tag no")
+                    
+                    if not all([prod_col, dsgn_col, sub_col, status_col]) or not tag_col:
+                        continue
+                    
+                    for dr in range(2, d_sheet.max_row + 1):
+                        r_prod = str(d_sheet.cell(row=dr, column=prod_col).value or "").strip().lower()
+                        r_dsgn = str(d_sheet.cell(row=dr, column=dsgn_col).value or "").strip().lower()
+                        r_sub = str(d_sheet.cell(row=dr, column=sub_col).value or "").strip().lower()
+                        r_status = str(d_sheet.cell(row=dr, column=status_col).value or "").strip().lower()
+                        r_tag = str(d_sheet.cell(row=dr, column=tag_col).value or "").strip()
+                        s_est_info = str(d_sheet.cell(row=dr, column=status_col + 1).value or "")
+                        
+                        if not r_tag or r_tag == "None":
+                            continue
+                            
+                        if r_status in ["estimated", "billed", "tagreserve"]:
+                            print(f"⏭️ Skipping Tag '{r_tag}' from {d_name} (Row {dr}) because status is '{r_status}'.")
+                            continue
+                        
+                        if r_prod == prod and r_dsgn == dsgn and r_sub == subd:
+                            if (d_name, dr) not in self.used_tags_coords:
+                                self.used_tags_coords.append((d_name, dr))
+                                ol_sheet.cell(row=r, column=7).value = r_tag
+                                
+                                updated = True
+                                matched = True
+                                print(f"✅ Found matching Tag '{r_tag}' for Row {r} from {d_name} (Row {dr}). Will mark 'Tagreserve' on Pass.")
+                                break
+                    if matched:
+                        break
+                
+                if not matched:
+                    print(f"⚠️ No matching tag found for Row {r} (Product: {prod}, Design: {dsgn})")
+        
+        if updated:
+            wb.save(FILE_PATH)
+        wb.close()
+
+    def _update_detail_sheet_tag_status(self, tag_no, order_no):
+        """Updates the tag status to 'Tagreserve' only after successful Order Link."""
+        wb = load_workbook(FILE_PATH)
+        updated = False
+        for ds in ["Tag_Detail", "Purchase_TagDetail"]:
+            if ds in wb.sheetnames:
+                d_sheet = wb[ds]
+                headers = {str(cell.value).strip().lower(): i for i, cell in enumerate(d_sheet[1], 1) if cell.value}
+                tag_col = headers.get("tag no")
+                status_col = headers.get("status")
+                if not tag_col or not status_col:
+                    continue
+                    
+                for dr in range(2, d_sheet.max_row + 1):
+                    r_tag = str(d_sheet.cell(row=dr, column=tag_col).value or "").strip()
+                    if r_tag == tag_no:
+                        order_col = status_col + 1
+                        if not d_sheet.cell(row=1, column=order_col).value:
+                            d_sheet.cell(row=1, column=order_col).value = "Ordernumber"
+                        
+                        d_sheet.cell(row=dr, column=status_col).value = "Tagreserve"
+                        d_sheet.cell(row=dr, column=order_col).value = order_no
+                        updated = True
+                        print(f"✅ Post-Pass: Updated {ds} for Tag '{tag_no}' -> 'Tagreserve'")
+                        break
+            if updated:
+                break
+                
+        if updated:
+            wb.save(FILE_PATH)
+        wb.close()
+
+    def _update_billing_sheet(self, row_data, customer_mobile):
+        """Appends a new row to the Billing sheet after successful OrderLink."""
+        sheet_name = "Billing"
+        try:
+            wb = load_workbook(FILE_PATH)
+            if sheet_name not in wb.sheetnames:
+                print(f"⚠️ Sheet '{sheet_name}' not found in Excel.")
+                wb.close()
+                return
+
+            sh = wb[sheet_name]
+            next_row = sh.max_row + 1
+            
+            def get_next_tc_id():
+                last_id = sh.cell(row=next_row - 1, column=1).value
+                if not last_id or not isinstance(last_id, str):
+                    return "TC002" if next_row > 2 else "TC001"
+                import re
+                match = re.search(r"(\d+)", last_id)
+                if match:
+                    num_str = match.group(0)
+                    new_num = int(num_str) + 1
+                    return last_id.replace(num_str, str(new_num).zfill(len(num_str)))
+                return "TC001"
+
+
+            new_tc_id = get_next_tc_id()
+
+            mappings = {
+                1: new_tc_id,
+                4: row_data.get("Branch", ""),
+                5: "Customer",
+                6: "111-Developer Logimax",
+                7: customer_mobile,
+                9: "Show Room",
+                10: "ORDER DELIVERY",
+                11: "No"
+            }
+            for col, value in mappings.items():
+                if value is not None:
+                    sh.cell(row=next_row, column=col, value=value).font = Font(bold=True)
+
+            wb.save(FILE_PATH)
+            wb.close()
+            print(f"✅ Billing sheet appended at row {next_row} with ID {new_tc_id} and Mobile '{customer_mobile}'")
+        except Exception as e:
+            print(f"❌ Failed to append to Billing sheet: {e}")

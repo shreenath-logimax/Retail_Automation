@@ -187,7 +187,7 @@ class main():
                             Data = Vendor_automation.test_customer_order()  
                         case "EST":
                             print("yes")
-                            EST = ESTIMATION(driver)
+                            EST = ESTIMATION(driver)                           
                             Data = EST.test_estimation() 
                         case "Billing":
                             print("yes")

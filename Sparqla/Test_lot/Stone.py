@@ -93,7 +93,7 @@ class Stone(unittest.TestCase):
                 wait.until(EC.visibility_of_element_located(
                     (By.XPATH,"(//select[@name='est_stones_item[uom_id][]'])[{}]".format(row)))).click()
                 Select(wait.until(EC.visibility_of_element_located(
-                    (By.XPATH,"(//select[@name='est_stones_item[uom_id][]'])[{}]".format(row))))).select_by_visible_text(str(row_Stonedata['Wt Type']).strip().lower())
+                    (By.XPATH,"(//select[@name='est_stones_item[uom_id][]'])[{}]".format(row))))).select_by_visible_text(str(row_Stonedata['Wt Type']).strip())
            
                 if row_Stonedata["Cal.Type"]== "Wt":      
                     wait.until(EC.element_to_be_clickable(

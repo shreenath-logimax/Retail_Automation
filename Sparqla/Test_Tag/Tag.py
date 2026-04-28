@@ -285,8 +285,8 @@ class Tag(unittest.TestCase):
                 McType=wait.until(EC.element_to_be_clickable((By.XPATH,'//select[@id="tag_id_mc_type"]')))
                 McType.click()
                 Select(McType).select_by_visible_text(row_data["Mc Type"])
-            wait.until(EC.element_to_be_clickable((By.XPATH,"//input[@id='tag_mc_value']"))).clear()    
-            wait.until(EC.element_to_be_clickable((By.XPATH,"//input[@id='tag_mc_value']"))).send_keys(row_data["MC"])
+                wait.until(EC.element_to_be_clickable((By.XPATH,"//input[@id='tag_mc_value']"))).clear()    
+                wait.until(EC.element_to_be_clickable((By.XPATH,"//input[@id='tag_mc_value']"))).send_keys(row_data["MC"])
             
             if row_data["Size"]:
                 wait.until(EC.element_to_be_clickable((By.ID,"select2-tag_size-container"))).click()
@@ -414,18 +414,23 @@ class Tag(unittest.TestCase):
                     pass
             Test_Status = 'Pass'
             Actual_Status="Tagged successfully"
+            # Reload workbook from disk before saving to preserve Tag_Detail changes
+            # written by update_Tagdetails in previous iterations (stale object would wipe them)
+            workbook = load_workbook(FILE_PATH)
+            sheet = workbook[function_name]
             sheet.cell(row=row_num, column=2).value = Test_Status
             sheet.cell(row=row_num, column=3).value = Actual_Status
             workbook.save(FILE_PATH)
             Status = ExcelUtils.get_Status(FILE_PATH,function_name)  
-            print(Status)
+            print(Status) 
+            Tag.update_Tagdetails(self,row_num,function_name)            
             Update_master = ExcelUtils.update_master_status(FILE_PATH,Status,function_name)  
         
         # After loop, update the final Lot in BranchTransfer sheet
         if row_num >= 2:
             self.update_branch_transfer(Current_Lot, row_data["Branch"])
             
-        Tag.update_Tagdetails(self,row_num,function_name)
+        #Tag.update_Tagdetails(self,row_num,function_name)
                 # driver.find_element(By.XPATH,"(.//*[normalize-space(text()) and normalize-space(.)='Booking Master'])[1]/following::div[3]").click()
     
     
@@ -473,10 +478,13 @@ class Tag(unittest.TestCase):
                     break
         
         next_tc_num = last_tc_num + 1
-        # Loop through each web table row ONCE
-        # Start from the first empty row instead of hardcoded row 2
-        row_idx = sheet.max_row + 1
-        for table_row in table_rows:
+        # New rows are prepended to the TOP of the preview table (newest = index 0).
+        # Always grab only the first row — the one just added.
+        valu = table_rows[:1]
+        # Derive row_idx from last_tc_num: header=row1, TC001=row2, TC002=row3...
+        # This avoids openpyxl max_row unreliability caused by phantom formatted rows
+        row_idx = last_tc_num + 2
+        for table_row in valu:
             table_cells = table_row.find_elements(By.TAG_NAME, "td")
             row_values = [table_cells[i].text.strip() for i in columns_indexes]
             print("Row Values:", row_values)
@@ -489,9 +497,25 @@ class Tag(unittest.TestCase):
             sheet.cell(row=row_idx, column=1, value=tc_id)
             next_tc_num += 1
 
+            # Numeric column indexes in row_values:
+            # 0=Lot, 6=Pieces, 7=Gross Wgt, 8=Less Wgt, 9=Net Wgt, 10=Wast%, 11=Making Charge
+            numeric_indexes = {0, 6, 7, 8, 9, 10, 11}
+
             # Write row data to Excel (starting from column 2)
             for col_offset, value in enumerate(row_values):
-                sheet.cell(row=row_idx, column=2 + col_offset, value=value)
+                if col_offset in numeric_indexes:
+                    try:
+                        str_val = str(value).strip() if value is not None else ''
+                        # Treat empty, None, or web-returned "NaN"/"nan" as 0.0
+                        if str_val == '' or str_val.lower() == 'nan':
+                            cell_value = 0.0
+                        else:
+                            cell_value = float(str_val)
+                    except (ValueError, TypeError):
+                        cell_value = 0.0  # safe fallback for any unexpected value
+                else:
+                    cell_value = value  # keep as string (Tag No, Product, Design, Sub Design, Calc Type)
+                sheet.cell(row=row_idx, column=2 + col_offset, value=cell_value)
             row_idx += 1  # move to next Excel row
 
         workbook.save(FILE_PATH)

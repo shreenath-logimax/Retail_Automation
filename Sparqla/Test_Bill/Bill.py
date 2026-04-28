@@ -64,7 +64,9 @@ class Billing(unittest.TestCase):
             if row_data.get("BillNo"):
                 print(f"Row {row_num}: Bill No {row_data['BillNo']} already generated successfully. skipping... ✅")
                 continue
-
+            print(f"\n{'='*80}")
+            print(f"🧪 Running Test Case: {row_data['Test Case Id']}")
+            print(f"{'='*80}")
             self.repair_total = 0  # Reset for each row
             print(f"Starting test case: {row_data['Test Case Id']}")
             
@@ -385,10 +387,40 @@ class Billing(unittest.TestCase):
                  self._update_excel_status(row_num, "Pass", "Success", sheet_name, captured_id)
                  # Update Bill Details Summary
                  self._update_bill_summary(row_data, captured_id, amounts)
+                 # Update tags to 'Billed' if this was from an estimation
+                 est_no = row_data.get("EstNo")
+                 if est_no:
+                     self._update_tag_source_sheets(est_no, captured_id)
             else:
                  self._update_excel_status(row_num, "Fail", f"Message: {msg_el.text}", sheet_name)
         except:
              self._update_excel_status(row_num, "Fail", "Success message not found", sheet_name)
+
+    def _update_tag_source_sheets(self, est_no, bill_no):
+        """Finds rows with the given Estimation No in Tag_Detail and Purchase_TagDetail and updates Status to 'Billed'."""
+        try:
+            wb = load_workbook(FILE_PATH)
+            sheets_to_update = ["Tag_Detail", "Purchase_TagDetail"]
+            updated = False
+            for sheet_name in sheets_to_update:
+                if sheet_name in wb.sheetnames:
+                    sh = wb[sheet_name]
+                    # Loop through rows to find matching EstNo in column 15
+                    for r in range(2, sh.max_row + 1):
+                        est_info = str(sh.cell(row=r, column=15).value or "")
+                        # est_info is like "12 - 2026-04-28 12:58:19"
+                        if str(est_no) and est_info.startswith(str(est_no) + " -"):
+                            sh.cell(row=r, column=14, value="Billed").font = Font(bold=True, color="0000FF")
+                            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            sh.cell(row=r, column=15, value=f"{bill_no} - {timestamp}")
+                            updated = True
+            if updated:
+                wb.save(FILE_PATH)
+                print(f"✅ Updated source tags to 'Billed' for EstNo {est_no} with BillNo {bill_no}")
+            wb.close()
+        except Exception as e:
+            print(f"❌ Failed to update tag source sheets for billing: {e}")
+
   
     def _get_network_response_data(self):
         """Parse Chrome performance log to extract 'respondedata'.

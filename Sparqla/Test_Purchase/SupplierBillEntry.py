@@ -377,11 +377,11 @@ class SupplierBillEntry(unittest.TestCase):
             search_xpath = '//div[@id="pur_entry_list_filter"]//input'
             search = wait.until(EC.presence_of_element_located((By.XPATH, search_xpath)))
             search.clear()
-            search.send_keys(search_val)
+            search.send_keys(GRN_no)
             sleep(2)
             
-            current_field = f"Table Row Search for {search_val}"
-            table_xpath = f'//table[@id="pur_entry_list"]//tr[contains(., "{search_val}")]'
+            current_field = f"Table Row Search for {GRN_no}"
+            table_xpath = f'//table[@id="pur_entry_list"]//tr[contains(., "{GRN_no}")]'
             rows = driver.find_elements(By.XPATH, table_xpath)
             if rows:
                 # Capture PO Number from column 5 (at the targeted job_id row)

@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"name": "Retail_Automation",
+			"path": ".."
+		},
+		{
+			"path": "../../xampp/htdocs/etail_development_src"
+		}
+	],
+	"settings": {}
+}
